@@ -50,6 +50,16 @@ from ml.predict import (
     MLAnomalySummary,
     ProjectMLPrediction,
 )
+from app.real_mplads import (
+    RealMPLADSLoader,
+    RealMPLADSStatsResponse,
+    RealPeerBenchmarkEngine,
+    RealWorkBenchmarkResult,
+    RealWorksListResponse,
+    get_real_benchmark_engine,
+    get_real_data_loader,
+    get_real_search_index,
+)
 
 
 @asynccontextmanager
@@ -59,6 +69,8 @@ async def lifespan(app: FastAPI):
     upon server startup for sub-millisecond API responses.
     """
     get_cache()
+    get_real_data_loader()
+    get_real_search_index()
     yield
 
 
@@ -656,6 +668,114 @@ def get_geospatial_quality():
     return cache.geospatial_quality
 
 
+@app.get(
+    "/api/real-mplads/works",
+    response_model=RealWorksListResponse,
+    tags=["Real MPLADS"],
+    summary="Browse and search genuine real MPLADS recommended and completed works",
+)
+def get_real_works(
+    dataset: str = Query("recommended", description="'recommended' or 'completed'"),
+    state: Optional[str] = Query(None, description="Filter by State"),
+    category: Optional[str] = Query(None, description="Filter by Category"),
+    q: Optional[str] = Query(None, description="Search query across Work Description"),
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """
+    Returns paginated authentic records from official MPLADS portal exports without synthetic augmentation.
+    """
+    loader = get_real_data_loader()
+    dataset_clean = dataset.lower().strip()
+    records = loader.recommended_records if dataset_clean == "recommended" else loader.completed_records
+
+    filtered = records
+    if state:
+        st_clean = state.strip().lower()
+        filtered = [r for r in filtered if r.state.strip().lower() == st_clean]
+    if category:
+        cat_clean = category.strip().lower()
+        filtered = [r for r in filtered if r.category.strip().lower() == cat_clean]
+    if q and q.strip():
+        q_clean = q.strip().lower()
+        filtered = [r for r in filtered if q_clean in r.work_description.lower()]
+
+    total = len(filtered)
+    paginated = filtered[offset : offset + limit]
+
+    return {
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+        "count": len(paginated),
+        "dataset": "recommended_works" if dataset_clean == "recommended" else "completed_works",
+        "data": paginated,
+    }
+
+
+@app.get(
+    "/api/real-mplads/benchmark",
+    response_model=RealWorkBenchmarkResult,
+    tags=["Real MPLADS"],
+    summary="Execute peer benchmarking and comparable project cost analysis against real MPLADS data",
+)
+def benchmark_real_work(
+    work_id: Optional[int] = Query(None, description="Official Real MPLADS Work ID"),
+    dataset: str = Query("recommended", description="'recommended' or 'completed'"),
+    description: Optional[str] = Query(None, description="Custom work description for ad-hoc benchmarking"),
+    amount: Optional[float] = Query(None, description="Custom proposed amount in Rupees"),
+    state: Optional[str] = Query(None, description="Custom state context"),
+    category: Optional[str] = Query(None, description="Custom category context"),
+    ida: Optional[str] = Query(None, description="Custom IDA context"),
+    top_k: int = Query(5, ge=1, le=20),
+    min_similarity: float = Query(0.35, ge=0.1, le=1.0),
+):
+    """
+    Finds genuinely comparable real works using TF-IDF n-gram text similarity + administrative hierarchy,
+    and computes median peer costs, variances, and explainable benchmarking insights without fabricating linkages.
+    """
+    engine = get_real_benchmark_engine()
+    dataset_clean = dataset.lower().strip()
+
+    if work_id is not None:
+        return engine.benchmark_by_id(
+            work_id=work_id,
+            dataset=dataset_clean,
+            top_k=top_k,
+            min_composite_similarity=min_similarity,
+        )
+    elif description and amount is not None:
+        return engine.benchmark_custom(
+            description=description,
+            amount=amount,
+            state=state,
+            category=category,
+            ida=ida,
+            dataset=dataset_clean,
+            top_k=top_k,
+            min_composite_similarity=min_similarity,
+        )
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either 'work_id' or both ('description' and 'amount') must be provided for peer benchmarking.",
+        )
+
+
+@app.get(
+    "/api/real-mplads/stats",
+    response_model=RealMPLADSStatsResponse,
+    tags=["Real MPLADS"],
+    summary="Get summary metrics across the real MPLADS dataset repository",
+)
+def get_real_stats():
+    """
+    Returns summary statistics across recommended works, completed works, and macro financial datasets.
+    """
+    loader = get_real_data_loader()
+    return loader.get_stats()
+
+
 @app.get("/", tags=["Root"])
 def root():
     """
@@ -675,4 +795,7 @@ def root():
         "audit_queue": "/api/analytics/audit-queue",
         "districts": "/api/analytics/districts",
         "geospatial_quality": "/api/analytics/geospatial/quality",
+        "real_mplads_works": "/api/real-mplads/works",
+        "real_mplads_benchmark": "/api/real-mplads/benchmark",
+        "real_mplads_stats": "/api/real-mplads/stats",
     }

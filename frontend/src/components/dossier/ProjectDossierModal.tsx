@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Project,
   ProjectRiskProfile,
@@ -22,6 +22,7 @@ import {
   XCircle,
   Scale,
 } from "lucide-react";
+import { RealComparableProjectsPanel } from "./RealComparableProjectsPanel";
 
 interface ProjectDossierModalProps {
   projectId: string | null;
@@ -40,6 +41,7 @@ export const ProjectDossierModal: React.FC<ProjectDossierModalProps> = ({
   allAnomalies,
   allMLPredictions,
 }) => {
+  const [activeTab, setActiveTab] = useState<"DOSSIER" | "COMPARABLE">("DOSSIER");
   const [benchmark, setBenchmark] = useState<ProjectBenchmarkResult | null>(null);
   const [forecast, setForecast] = useState<ProjectForecastResult | null>(null);
 
@@ -130,9 +132,44 @@ export const ProjectDossierModal: React.FC<ProjectDossierModalProps> = ({
           </div>
         </div>
 
+        {/* Sub-Navigation Bar inside Dossier */}
+        <div className="bg-white px-6 border-b border-slate-200 flex items-center justify-between gap-4 sticky top-[69px] z-10">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setActiveTab("DOSSIER")}
+              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all flex items-center gap-2 ${
+                activeTab === "DOSSIER"
+                  ? "border-blue-600 text-blue-700 bg-blue-50/40"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <ShieldAlert className="w-3.5 h-3.5" />
+              Project Dossier & Risk Diagnostic
+            </button>
+            <button
+              onClick={() => setActiveTab("COMPARABLE")}
+              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all flex items-center gap-2 ${
+                activeTab === "COMPARABLE"
+                  ? "border-blue-600 text-blue-700 bg-blue-50/40"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <Scale className="w-3.5 h-3.5" />
+              Real MPLADS Comparable Projects
+              <span className="px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[10px] font-bold">
+                14.7k
+              </span>
+            </button>
+          </div>
+        </div>
+
         {/* Scrollable Content Body */}
         <div className="p-6 space-y-6 overflow-y-auto">
-          {/* SECTION 1: PROJECT SNAPSHOT */}
+          {activeTab === "COMPARABLE" ? (
+            <RealComparableProjectsPanel project={project} />
+          ) : (
+            <>
+              {/* SECTION 1: PROJECT SNAPSHOT */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sanctioned</span>
@@ -316,10 +353,25 @@ export const ProjectDossierModal: React.FC<ProjectDossierModalProps> = ({
                       </div>
                     </div>
                   </div>
+
+                  <button
+                    onClick={() => setActiveTab("COMPARABLE")}
+                    className="w-full mt-2 text-xs text-blue-700 hover:text-blue-900 bg-blue-50/80 hover:bg-blue-100/80 p-2 rounded-lg font-semibold flex items-center justify-center gap-1.5 transition-colors border border-blue-200"
+                  >
+                    <Scale className="w-3.5 h-3.5" />
+                    Deep Peer Analysis (14,745 Real Works)
+                  </button>
                 </div>
               ) : (
-                <div className="py-6 text-center text-xs text-slate-400">
-                  Loading comparable peer benchmark statistics...
+                <div className="py-6 text-center text-xs text-slate-400 space-y-2">
+                  <p>Loading comparable peer benchmark statistics...</p>
+                  <button
+                    onClick={() => setActiveTab("COMPARABLE")}
+                    className="inline-flex items-center gap-1.5 text-xs text-blue-700 bg-blue-50 px-3 py-1.5 rounded-lg font-semibold border border-blue-200"
+                  >
+                    <Scale className="w-3.5 h-3.5" />
+                    Open Real Comparable Works
+                  </button>
                 </div>
               )}
             </div>
@@ -451,6 +503,8 @@ export const ProjectDossierModal: React.FC<ProjectDossierModalProps> = ({
               </div>
             </div>
           </div>
+            </>
+          )}
         </div>
 
         {/* Modal Footer */}

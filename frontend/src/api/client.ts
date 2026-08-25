@@ -1,4 +1,4 @@
-﻿import {
+import {
   AnomaliesResponse,
   AuditQueueResponse,
   BenchmarkListResponse,
@@ -181,4 +181,59 @@ export const api = {
     const res = await fetch(`${BASE_URL}/api/analytics/audit-queue?${query}`);
     return handleResponse<AuditQueueResponse>(res);
   },
+
+  // Real MPLADS Works Explorer
+  async getRealMPLADSWorks(params?: {
+    dataset?: string;
+    state?: string;
+    category?: string;
+    q?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<import("../types").RealWorksListResponse> {
+    const query = new URLSearchParams();
+    if (params?.dataset) query.set("dataset", params.dataset);
+    if (params?.state) query.set("state", params.state);
+    if (params?.category) query.set("category", params.category);
+    if (params?.q) query.set("q", params.q);
+    if (params?.limit) query.set("limit", String(params.limit));
+    if (params?.offset) query.set("offset", String(params.offset));
+
+    const res = await fetch(`${BASE_URL}/api/real-mplads/works?${query}`);
+    return handleResponse<import("../types").RealWorksListResponse>(res);
+  },
+
+  // Real MPLADS Peer Benchmarking
+  async getRealMPLADSBenchmark(params: {
+    work_id?: number;
+    dataset?: string;
+    description?: string;
+    amount?: number;
+    state?: string;
+    category?: string;
+    ida?: string;
+    top_k?: number;
+    min_similarity?: number;
+  }): Promise<import("../types").RealWorkBenchmarkResult> {
+    const query = new URLSearchParams();
+    if (params.work_id !== undefined) query.set("work_id", String(params.work_id));
+    if (params.dataset) query.set("dataset", params.dataset);
+    if (params.description) query.set("description", params.description);
+    if (params.amount !== undefined) query.set("amount", String(params.amount));
+    if (params.state) query.set("state", params.state);
+    if (params.category) query.set("category", params.category);
+    if (params.ida) query.set("ida", params.ida);
+    if (params.top_k) query.set("top_k", String(params.top_k));
+    if (params.min_similarity) query.set("min_similarity", String(params.min_similarity));
+
+    const res = await fetch(`${BASE_URL}/api/real-mplads/benchmark?${query}`);
+    return handleResponse<import("../types").RealWorkBenchmarkResult>(res);
+  },
+
+  // Real MPLADS Dataset Stats
+  async getRealMPLADSStats(): Promise<import("../types").RealMPLADSStatsResponse> {
+    const res = await fetch(`${BASE_URL}/api/real-mplads/stats`);
+    return handleResponse<import("../types").RealMPLADSStatsResponse>(res);
+  },
 };
+

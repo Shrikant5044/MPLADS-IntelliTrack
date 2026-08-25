@@ -1,4 +1,4 @@
-﻿export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export type RiskLevel = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 export type Severity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 export type NavigationTab = 
@@ -364,3 +364,87 @@ export interface SystemHealth {
   service: string;
   version: string;
 }
+
+export interface RealWorkRecord {
+  work_id: number;
+  work_description: string;
+  category: string;
+  mp_name: string;
+  constituency: string;
+  state: string;
+  house: string;
+  amount: number;
+  amount_lakh: number;
+  date: string;
+  has_images: boolean;
+  ida: string;
+  dataset_source: "recommended_works" | "completed_works";
+}
+
+export interface RealComparableWorkPeer {
+  work_id: number;
+  work_description: string;
+  category: string;
+  state: string;
+  constituency: string;
+  mp_name: string;
+  ida: string;
+  amount: number;
+  amount_lakh: number;
+  similarity_score: number;
+  text_similarity: number;
+  state_match: boolean;
+  category_match: boolean;
+  ida_match: boolean;
+  match_tier: string;
+  winning_query?: string | null;
+}
+
+export interface RealWorkBenchmarkResult {
+  status: "SUCCESS" | "INSUFFICIENT_PEERS" | "ERROR_NOT_FOUND";
+  analysis_type: string;
+  source_dataset: "recommended_works" | "completed_works";
+  amount_type: "Recommended Amount" | "Final Amount";
+  target_work?: RealWorkRecord | null;
+  target_amount: number;
+  target_amount_lakh: number;
+  comparable_project_count: number;
+  peer_median_amount: number;
+  peer_median_lakh: number;
+  peer_average_amount: number;
+  peer_average_lakh: number;
+  peer_min_amount: number;
+  peer_min_lakh: number;
+  peer_max_amount: number;
+  peer_max_lakh: number;
+  peer_std_amount: number;
+  ratio_to_peer_median: number;
+  percentage_difference_from_peer_median: number;
+  average_peer_similarity: number;
+  matching_confidence: number;
+  benchmark_insight: string;
+  comparable_works: RealComparableWorkPeer[];
+}
+
+export interface RealWorksListResponse {
+  total: number;
+  limit: number;
+  offset: number;
+  count: number;
+  dataset: string;
+  data: RealWorkRecord[];
+}
+
+export interface RealMPLADSStatsResponse {
+  total_recommended_works: number;
+  total_completed_works: number;
+  total_expenditure_records: number;
+  total_mp_summary_records: number;
+  total_recommended_amount_lakh: number;
+  total_completed_final_amount_lakh: number;
+  total_disbursed_expenditure_lakh: number;
+  categories_distribution: Record<string, number>;
+  top_states_by_works: Record<string, number>;
+  data_source_integrity_note: string;
+}
+
