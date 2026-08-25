@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Project,
   ProjectRiskProfile,
@@ -17,6 +17,7 @@ import {
   Building2,
   ListOrdered,
   Search,
+  RotateCcw,
 } from "lucide-react";
 
 interface AnalyticsViewProps {
@@ -28,6 +29,7 @@ interface AnalyticsViewProps {
 }
 
 export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
+  projects = [],
   districts,
   districtSummary,
   onSelectProject,
@@ -44,6 +46,106 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
   const [urgencyFilter, setUrgencyFilter] = useState<string>("ALL");
   const [investigationFilter, setInvestigationFilter] = useState<string>("ALL");
   const [auditSearch, setAuditSearch] = useState<string>("");
+
+  // Priority Queue Geographic Hierarchy Filters
+  const [selectedState, setSelectedState] = useState<string>("ALL");
+  const [selectedDistrict, setSelectedDistrict] = useState<string>("ALL");
+  const [selectedConstituency, setSelectedConstituency] = useState<string>("ALL");
+
+  const projectMap = useMemo(() => {
+    const map = new Map<string, Project>();
+    (projects || []).forEach((p) => map.set(p.project_id, p));
+    return map;
+  }, [projects]);
+
+  // Hierarchical Options Computation
+  const availableStates = useMemo(() => {
+    const set = new Set<string>();
+    (projects || []).forEach((p) => {
+      if (p.state) set.add(p.state);
+    });
+    // Fallback to auditQueue if projects list is empty
+    if (set.size === 0) {
+      auditQueue.forEach((item) => {
+        if (item.state) set.add(item.state);
+      });
+    }
+    return Array.from(set).sort();
+  }, [projects, auditQueue]);
+
+  const availableDistricts = useMemo(() => {
+    const set = new Set<string>();
+    (projects || []).forEach((p) => {
+      if (selectedState === "ALL" || p.state === selectedState) {
+        if (p.district) set.add(p.district);
+      }
+    });
+    if (set.size === 0) {
+      auditQueue.forEach((item) => {
+        if (selectedState === "ALL" || item.state === selectedState) {
+          if (item.district) set.add(item.district);
+        }
+      });
+    }
+    return Array.from(set).sort();
+  }, [projects, auditQueue, selectedState]);
+
+  const availableConstituencies = useMemo(() => {
+    const set = new Set<string>();
+    (projects || []).forEach((p) => {
+      const matchState = selectedState === "ALL" || p.state === selectedState;
+      const matchDistrict = selectedDistrict === "ALL" || p.district === selectedDistrict;
+      if (matchState && matchDistrict) {
+        if (p.constituency) set.add(p.constituency);
+      }
+    });
+    return Array.from(set).sort();
+  }, [projects, selectedState, selectedDistrict]);
+
+  const handleStateChange = (st: string) => {
+    setSelectedState(st);
+    if (st === "ALL") {
+      setSelectedDistrict("ALL");
+      setSelectedConstituency("ALL");
+    } else {
+      const validDistricts = new Set(
+        (projects || []).filter((p) => p.state === st).map((p) => p.district)
+      );
+      if (selectedDistrict !== "ALL" && !validDistricts.has(selectedDistrict)) {
+        setSelectedDistrict("ALL");
+      }
+      setSelectedConstituency("ALL");
+    }
+  };
+
+  const handleDistrictChange = (dist: string) => {
+    setSelectedDistrict(dist);
+    if (dist === "ALL") {
+      setSelectedConstituency("ALL");
+    } else {
+      const validConstituencies = new Set(
+        (projects || []).filter((p) => p.district === dist && (selectedState === "ALL" || p.state === selectedState)).map((p) => p.constituency)
+      );
+      if (selectedConstituency !== "ALL" && !validConstituencies.has(selectedConstituency)) {
+        setSelectedConstituency("ALL");
+      }
+    }
+  };
+
+  const handleConstituencyChange = (c: string) => {
+    setSelectedConstituency(c);
+  };
+
+  const handleResetGeoFilters = () => {
+    setSelectedState("ALL");
+    setSelectedDistrict("ALL");
+    setSelectedConstituency("ALL");
+  };
+
+  const hasActiveGeoFilter =
+    selectedState !== "ALL" ||
+    selectedDistrict !== "ALL" ||
+    selectedConstituency !== "ALL";
 
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -76,15 +178,43 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
     return true;
   });
 
-  const filteredAuditQueue = auditQueue.filter((item) => {
-    if (urgencyFilter !== "ALL" && item.urgency !== urgencyFilter) return false;
-    if (investigationFilter !== "ALL" && !item.recommended_investigation_types.includes(investigationFilter as any)) return false;
-    if (auditSearch.trim()) {
-      const q = auditSearch.toLowerCase();
-      if (!item.project_id.toLowerCase().includes(q) && !item.work_name.toLowerCase().includes(q) && !item.district.toLowerCase().includes(q)) return false;
-    }
-    return true;
-  });
+  const filteredAuditQueue = useMemo(() => {
+    return auditQueue.filter((item) => {
+      if (urgencyFilter !== "ALL" && item.urgency !== urgencyFilter) return false;
+      if (investigationFilter !== "ALL" && !item.recommended_investigation_types.includes(investigationFilter as any)) return false;
+
+      const p = projectMap.get(item.project_id);
+      const itemState = item.state || p?.state;
+      const itemDistrict = item.district || p?.district;
+      const itemConstituency = p?.constituency;
+
+      if (selectedState !== "ALL" && itemState !== selectedState) return false;
+      if (selectedDistrict !== "ALL" && itemDistrict !== selectedDistrict) return false;
+      if (selectedConstituency !== "ALL" && itemConstituency !== selectedConstituency) return false;
+
+      if (auditSearch.trim()) {
+        const q = auditSearch.toLowerCase();
+        const match =
+          item.project_id.toLowerCase().includes(q) ||
+          item.work_name.toLowerCase().includes(q) ||
+          item.district.toLowerCase().includes(q) ||
+          (item.state && item.state.toLowerCase().includes(q)) ||
+          (itemConstituency && itemConstituency.toLowerCase().includes(q));
+        if (!match) return false;
+      }
+      return true;
+    });
+  }, [
+    auditQueue,
+    urgencyFilter,
+    investigationFilter,
+    selectedState,
+    selectedDistrict,
+    selectedConstituency,
+    auditSearch,
+    projectMap,
+  ]);
+
 
   const getTrajectoryBadge = (status: string) => {
     switch (status) {
@@ -184,38 +314,89 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
           </div>
 
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+              {/* Search */}
               <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
                   value={auditSearch}
                   onChange={(e) => setAuditSearch(e.target.value)}
-                  placeholder="Search project, work name, district..."
+                  placeholder="Search project ID, name..."
                   className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50"
                 />
               </div>
 
+              {/* Urgency / Risk Filter */}
               <div>
                 <select
                   value={urgencyFilter}
                   onChange={(e) => setUrgencyFilter(e.target.value)}
-                  className="w-full py-1.5 px-3 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50 text-slate-700 font-medium"
+                  className="w-full py-1.5 px-2.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50 text-slate-700 font-medium truncate"
                 >
-                  <option value="ALL">All Urgency Levels</option>
+                  <option value="ALL">All Risk / Urgency</option>
                   <option value="HIGH_URGENCY">High Urgency ({auditSummary?.high_priority_count || 26})</option>
                   <option value="MEDIUM_URGENCY">Medium Urgency ({auditSummary?.medium_priority_count || 93})</option>
                   <option value="ROUTINE">Routine Monitoring ({auditSummary?.routine_priority_count || 381})</option>
                 </select>
               </div>
 
+              {/* 1. State Filter */}
+              <div>
+                <select
+                  value={selectedState}
+                  onChange={(e) => handleStateChange(e.target.value)}
+                  className="w-full py-1.5 px-2.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50 text-slate-700 font-medium truncate"
+                >
+                  <option value="ALL">All States</option>
+                  {availableStates.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 2. District Filter */}
+              <div>
+                <select
+                  value={selectedDistrict}
+                  onChange={(e) => handleDistrictChange(e.target.value)}
+                  className="w-full py-1.5 px-2.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50 text-slate-700 font-medium truncate"
+                >
+                  <option value="ALL">All Districts ({availableDistricts.length})</option>
+                  {availableDistricts.map((dist) => (
+                    <option key={dist} value={dist}>
+                      {dist}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 3. Constituency Filter */}
+              <div>
+                <select
+                  value={selectedConstituency}
+                  onChange={(e) => handleConstituencyChange(e.target.value)}
+                  className="w-full py-1.5 px-2.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50 text-slate-700 font-medium truncate"
+                >
+                  <option value="ALL">All ({availableConstituencies.length})</option>
+                  {availableConstituencies.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Investigation Track */}
               <div>
                 <select
                   value={investigationFilter}
                   onChange={(e) => setInvestigationFilter(e.target.value)}
-                  className="w-full py-1.5 px-3 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50 text-slate-700 font-medium"
+                  className="w-full py-1.5 px-2.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50 text-slate-700 font-medium truncate"
                 >
-                  <option value="ALL">All Investigation Tracks</option>
+                  <option value="ALL">All Tracks</option>
                   <option value="PHYSICAL_INSPECTION">Physical Site Inspection</option>
                   <option value="FINANCIAL_AUDIT">Financial & Expenditure Audit</option>
                   <option value="PAYMENT_VERIFICATION">Payment Voucher Verification</option>
@@ -225,6 +406,31 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                   <option value="AGENCY_REVIEW">Agency Review</option>
                 </select>
               </div>
+            </div>
+
+            {/* Filter Count & Reset Indicator */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-700 font-bold">
+                  Showing {filteredAuditQueue.length} priority projects
+                </span>
+                {hasActiveGeoFilter && (
+                  <span className="text-[11px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 font-medium">
+                    Filtered by: {selectedState !== "ALL" ? selectedState : "All States"}
+                    {selectedDistrict !== "ALL" ? ` • ${selectedDistrict}` : ""}
+                    {selectedConstituency !== "ALL" ? ` • ${selectedConstituency}` : ""}
+                  </span>
+                )}
+              </div>
+              {hasActiveGeoFilter && (
+                <button
+                  onClick={handleResetGeoFilters}
+                  className="flex items-center gap-1 text-[11px] font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3 text-slate-400" />
+                  <span>Reset Geo</span>
+                </button>
+              )}
             </div>
           </div>
 

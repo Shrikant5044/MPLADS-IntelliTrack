@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Project,
   ProjectRiskProfile,
@@ -17,6 +17,7 @@ import {
   Copy,
   ExternalLink,
   ShieldAlert,
+  RotateCcw,
 } from "lucide-react";
 
 interface RiskAlertsViewProps {
@@ -39,6 +40,11 @@ export const RiskAlertsView: React.FC<RiskAlertsViewProps> = ({
   const [sortBy, setSortBy] = useState<"RISK_DESC" | "RISK_ASC" | "ANOMALIES_DESC">("RISK_DESC");
   const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"ALL_ALERTS" | "DUPLICATES">("ALL_ALERTS");
+
+  // Geographic Hierarchy Filters
+  const [selectedState, setSelectedState] = useState<string>("ALL");
+  const [selectedDistrict, setSelectedDistrict] = useState<string>("ALL");
+  const [selectedConstituency, setSelectedConstituency] = useState<string>("ALL");
 
   const projMap = useMemo(() => {
     const map = new Map<string, Project>();
@@ -63,6 +69,82 @@ export const RiskAlertsView: React.FC<RiskAlertsViewProps> = ({
     });
     return Array.from(set).sort();
   }, [projects]);
+
+  // Hierarchical Options Computation
+  const availableStates = useMemo(() => {
+    const set = new Set<string>();
+    projects.forEach((p) => {
+      if (p.state) set.add(p.state);
+    });
+    return Array.from(set).sort();
+  }, [projects]);
+
+  const availableDistricts = useMemo(() => {
+    const set = new Set<string>();
+    projects.forEach((p) => {
+      if (selectedState === "ALL" || p.state === selectedState) {
+        if (p.district) set.add(p.district);
+      }
+    });
+    return Array.from(set).sort();
+  }, [projects, selectedState]);
+
+  const availableConstituencies = useMemo(() => {
+    const set = new Set<string>();
+    projects.forEach((p) => {
+      const matchState = selectedState === "ALL" || p.state === selectedState;
+      const matchDistrict = selectedDistrict === "ALL" || p.district === selectedDistrict;
+      if (matchState && matchDistrict) {
+        if (p.constituency) set.add(p.constituency);
+      }
+    });
+    return Array.from(set).sort();
+  }, [projects, selectedState, selectedDistrict]);
+
+  const handleStateChange = (st: string) => {
+    setSelectedState(st);
+    if (st === "ALL") {
+      setSelectedDistrict("ALL");
+      setSelectedConstituency("ALL");
+    } else {
+      const validDistricts = new Set(
+        projects.filter((p) => p.state === st).map((p) => p.district)
+      );
+      if (selectedDistrict !== "ALL" && !validDistricts.has(selectedDistrict)) {
+        setSelectedDistrict("ALL");
+      }
+      setSelectedConstituency("ALL");
+    }
+  };
+
+  const handleDistrictChange = (dist: string) => {
+    setSelectedDistrict(dist);
+    if (dist === "ALL") {
+      setSelectedConstituency("ALL");
+    } else {
+      const validConstituencies = new Set(
+        projects.filter((p) => p.district === dist && (selectedState === "ALL" || p.state === selectedState)).map((p) => p.constituency)
+      );
+      if (selectedConstituency !== "ALL" && !validConstituencies.has(selectedConstituency)) {
+        setSelectedConstituency("ALL");
+      }
+    }
+  };
+
+  const handleConstituencyChange = (c: string) => {
+    setSelectedConstituency(c);
+  };
+
+  const handleResetGeoFilters = () => {
+    setSelectedState("ALL");
+    setSelectedDistrict("ALL");
+    setSelectedConstituency("ALL");
+  };
+
+  const hasActiveGeoFilter =
+    selectedState !== "ALL" ||
+    selectedDistrict !== "ALL" ||
+    selectedConstituency !== "ALL";
 
   const duplicatePairs = useMemo(() => {
     const dupAnoms = anomalies.filter((a) => a.anomaly_type === "POTENTIAL_DUPLICATE_WORK");
@@ -97,6 +179,18 @@ export const RiskAlertsView: React.FC<RiskAlertsViewProps> = ({
         return false;
       }
 
+      if (selectedState !== "ALL" && p.state !== selectedState) {
+        return false;
+      }
+
+      if (selectedDistrict !== "ALL" && p.district !== selectedDistrict) {
+        return false;
+      }
+
+      if (selectedConstituency !== "ALL" && p.constituency !== selectedConstituency) {
+        return false;
+      }
+
       if (selectedDomain !== "ALL") {
         const pAnoms = anomMap.get(rp.project_id) || [];
         if (selectedDomain === "FINANCIAL") {
@@ -119,7 +213,8 @@ export const RiskAlertsView: React.FC<RiskAlertsViewProps> = ({
         const matchId = rp.project_id.toLowerCase().includes(q);
         const matchName = p.work_name.toLowerCase().includes(q);
         const matchDist = p.district.toLowerCase().includes(q);
-        if (!matchId && !matchName && !matchDist) return false;
+        const matchConst = p.constituency ? p.constituency.toLowerCase().includes(q) : false;
+        if (!matchId && !matchName && !matchDist && !matchConst) return false;
       }
 
       return true;
@@ -133,7 +228,20 @@ export const RiskAlertsView: React.FC<RiskAlertsViewProps> = ({
       }
       return 0;
     });
-  }, [riskProfiles, projMap, anomMap, selectedRiskLevel, selectedCategory, selectedDomain, searchQuery, sortBy]);
+  }, [
+    riskProfiles,
+    projMap,
+    anomMap,
+    selectedRiskLevel,
+    selectedCategory,
+    selectedDomain,
+    selectedState,
+    selectedDistrict,
+    selectedConstituency,
+    searchQuery,
+    sortBy,
+  ]);
+
 
   const toggleExpand = (pid: string) => {
     setExpandedProjectId(expandedProjectId === pid ? null : pid);
@@ -293,23 +401,25 @@ export const RiskAlertsView: React.FC<RiskAlertsViewProps> = ({
       ) : (
         <div className="space-y-4">
           <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2.5">
+              {/* Search */}
               <div className="relative">
                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search project ID, name, district..."
+                  placeholder="Search projects..."
                   className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50"
                 />
               </div>
 
+              {/* Risk Level */}
               <div>
                 <select
                   value={selectedRiskLevel}
                   onChange={(e) => setSelectedRiskLevel(e.target.value)}
-                  className="w-full py-1.5 px-3 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50 text-slate-700 font-medium"
+                  className="w-full py-1.5 px-2.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50 text-slate-700 font-medium truncate"
                 >
                   <option value="ALL">All Risk Levels</option>
                   <option value="HIGH">High Risk (50-74)</option>
@@ -318,11 +428,60 @@ export const RiskAlertsView: React.FC<RiskAlertsViewProps> = ({
                 </select>
               </div>
 
+              {/* 1. State Filter */}
+              <div>
+                <select
+                  value={selectedState}
+                  onChange={(e) => handleStateChange(e.target.value)}
+                  className="w-full py-1.5 px-2.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50 text-slate-700 font-medium truncate"
+                >
+                  <option value="ALL">All States</option>
+                  {availableStates.map((st) => (
+                    <option key={st} value={st}>
+                      {st}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 2. District Filter */}
+              <div>
+                <select
+                  value={selectedDistrict}
+                  onChange={(e) => handleDistrictChange(e.target.value)}
+                  className="w-full py-1.5 px-2.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50 text-slate-700 font-medium truncate"
+                >
+                  <option value="ALL">All Districts ({availableDistricts.length})</option>
+                  {availableDistricts.map((dist) => (
+                    <option key={dist} value={dist}>
+                      {dist}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 3. Constituency Filter */}
+              <div>
+                <select
+                  value={selectedConstituency}
+                  onChange={(e) => handleConstituencyChange(e.target.value)}
+                  className="w-full py-1.5 px-2.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50 text-slate-700 font-medium truncate"
+                >
+                  <option value="ALL">All ({availableConstituencies.length})</option>
+                  {availableConstituencies.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Category Filter */}
               <div>
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full py-1.5 px-3 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50 text-slate-700 font-medium"
+                  className="w-full py-1.5 px-2.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50 text-slate-700 font-medium truncate"
                 >
                   <option value="ALL">All Categories</option>
                   {categories.map((cat) => (
@@ -333,18 +492,45 @@ export const RiskAlertsView: React.FC<RiskAlertsViewProps> = ({
                 </select>
               </div>
 
+              {/* Sort By */}
               <div>
                 <select
                   value={sortBy}
                   onChange={(e) => setSortBy(e.target.value as any)}
-                  className="w-full py-1.5 px-3 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50 text-slate-700 font-medium"
+                  className="w-full py-1.5 px-2.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50/50 text-slate-700 font-medium truncate"
                 >
-                  <option value="RISK_DESC">Sort: Highest Risk First</option>
+                  <option value="RISK_DESC">Sort: Highest Risk</option>
                   <option value="ANOMALIES_DESC">Sort: Most Anomalies</option>
-                  <option value="RISK_ASC">Sort: Lowest Risk First</option>
+                  <option value="RISK_ASC">Sort: Lowest Risk</option>
                 </select>
               </div>
             </div>
+
+            {/* Showing Count & Active Scope Status */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-700 font-bold">
+                  Showing {filteredProfiles.length} priority projects
+                </span>
+                {hasActiveGeoFilter && (
+                  <span className="text-[11px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 font-medium">
+                    Filtered by: {selectedState !== "ALL" ? selectedState : "All States"}
+                    {selectedDistrict !== "ALL" ? ` • ${selectedDistrict}` : ""}
+                    {selectedConstituency !== "ALL" ? ` • ${selectedConstituency}` : ""}
+                  </span>
+                )}
+              </div>
+              {hasActiveGeoFilter && (
+                <button
+                  onClick={handleResetGeoFilters}
+                  className="flex items-center gap-1 text-[11px] font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded transition-colors cursor-pointer"
+                >
+                  <RotateCcw className="w-3 h-3 text-slate-400" />
+                  <span>Reset Geo</span>
+                </button>
+              )}
+            </div>
+
 
             <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1">
