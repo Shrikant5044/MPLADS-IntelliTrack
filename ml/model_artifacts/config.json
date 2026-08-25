@@ -1,0 +1,9 @@
+{
+  "model_version": "v1.0.0-isolation-forest",
+  "n_estimators": 150,
+  "contamination": 0.1,
+  "random_state": 42,
+  "min_decision_val": -0.1846400863857685,
+  "max_decision_val": 0.10835429967620552,
+  "is_fitted": true
+}
