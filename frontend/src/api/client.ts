@@ -25,7 +25,8 @@ import {
   UserUpdate,
 } from "../types";
 
-const BASE_URL = "";
+const rawBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").trim();
+const BASE_URL = rawBaseUrl.replace(/\/+$/, "");
 
 let authToken: string | null = localStorage.getItem("mplads_auth_token");
 
