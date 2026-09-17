@@ -27,7 +27,7 @@ import { ProjectDossierModal } from "./components/dossier/ProjectDossierModal";
 import { ShieldAlert, AlertTriangle, RefreshCw } from "lucide-react";
 
 const MainDashboard: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isLoading: authIsLoading } = useAuth();
 
   // Navigation & Dossier state
   const [activeTab, setActiveTab] = useState<NavigationTab>("OVERVIEW");
@@ -49,7 +49,7 @@ const MainDashboard: React.FC = () => {
   const [districtSummary, setDistrictSummary] = useState<DistrictAnalyticsSummary | null>(null);
 
   // Loading & Error States
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
@@ -86,9 +86,30 @@ const MainDashboard: React.FC = () => {
     }
   };
 
+  // Gate: Only load operational data AFTER auth initialization completes AND user is authenticated.
+  // This prevents unauthenticated requests to protected endpoints during session restore,
+  // which would produce 401 errors now that all operational endpoints require authentication.
+  // ADMIN users have no access to operational intelligence endpoints (403), so skip data load.
   useEffect(() => {
+    if (authIsLoading) {
+      // Auth context is still restoring session from localStorage — do not fire any API calls yet.
+      return;
+    }
+    if (!user) {
+      // Auth init completed and no user found — open the login modal, do not call protected APIs.
+      setIsLoading(false);
+      setIsLoginModalOpen(true);
+      return;
+    }
+    if (user.role === "ADMIN") {
+      // Admin users are restricted to user management only — skip operational data endpoints.
+      setIsLoading(false);
+      return;
+    }
+    // Authenticated operational user (MOSPI_OFFICER or DISTRICT_AUTHORITY): load intelligence data.
+    setIsLoading(true);
     loadData();
-  }, [user]);
+  }, [authIsLoading, user]);
 
   // Global Keyboard Shortcut (⌘K / Ctrl+K)
   useEffect(() => {
@@ -107,7 +128,7 @@ const MainDashboard: React.FC = () => {
     loadData();
   };
 
-  if (isLoading) {
+  if (authIsLoading || isLoading) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center space-y-4 font-sans text-slate-800">
         <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center shadow-xs animate-pulse">
@@ -118,7 +139,9 @@ const MainDashboard: React.FC = () => {
             Loading MPLADS Intelligence Platform
           </div>
           <div className="text-xs text-slate-500">
-            Synchronizing 31 Anomaly Rules, ML Outliers & Trajectory Forecasts...
+            {authIsLoading
+              ? "Verifying session credentials..."
+              : "Synchronizing 31 Anomaly Rules, ML Outliers & Trajectory Forecasts..."}
           </div>
         </div>
       </div>
