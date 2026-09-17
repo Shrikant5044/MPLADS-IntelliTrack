@@ -1,0 +1,38 @@
+=== 1. MOSPI_OFFICER TESTS ===
+MOSPI List all investigations: 200 2 items
+MOSPI Get INV-2026-0358 (District-04): 200
+MOSPI Get INV-2026-0001 (District-12): 200
+
+=== 2. DISTRICT_AUTHORITY (District-04) IN-SCOPE TESTS ===
+Get INV-2026-0358 (District-04): 200
+Get Project Investigation MPL-0358 (District-04): 200
+List investigations (unfiltered): 200 1 item(s) returned
+List investigations (district=District-04): 200 1 item(s) returned
+
+=== 3. OUT-OF-SCOPE ATTACK TESTS (District-04 officer attacking District-12) ===
+Create investigation for out-of-scope project MPL-0001: 403 {'detail': "Forbidden: You cannot initiate investigations for project in district 'District-21'. Your assigned district is 'District-04'."}
+Get out-of-scope investigation INV-2026-0001: 403 {'detail': "Forbidden: Investigation belongs to district 'District-12', which is outside your assigned district 'District-04'."}
+Get out-of-scope project investigation MPL-0001: 403 {'detail': "Forbidden: Project investigation belongs to district 'District-12', which is outside your assigned district 'District-04'."}
+List investigations with district=District-12: 403 {'detail': "Forbidden: You are only authorized to access investigations in district 'District-04'."}
+Assign out-of-scope investigation INV-2026-0001: 403 {'detail': 'Forbidden: Outside assigned district.'}
+Status update out-of-scope INV-2026-0001: 403 {'detail': 'Forbidden: Outside assigned district.'}
+Progress update out-of-scope INV-2026-0001: 403 {'detail': 'Forbidden: Outside assigned district.'}
+Add finding out-of-scope INV-2026-0001: 403 {'detail': 'Forbidden: Outside assigned district.'}
+Escalate out-of-scope INV-2026-0001: 403 {'detail': 'Forbidden: Outside assigned district.'}
+Resolve out-of-scope INV-2026-0001: 403 {'detail': 'Forbidden: Outside assigned district.'}
+
+=== 4. PARAMETER MANIPULATION & IDOR TESTS ===
+Manipulate project_id to MPL-0005 (District-12): 403 {'detail': "Forbidden: You cannot initiate investigations for project in district 'District-18'. Your assigned district is 'District-04'."}
+URL parameter manipulation (INV-2026-0001): 403 {'detail': "Forbidden: Investigation belongs to district 'District-12', which is outside your assigned district 'District-04'."}
+Query parameter district=District-05 manipulation: 403 {'detail': "Forbidden: You are only authorized to access investigations in district 'District-04'."}
+
+=== 5. ADMIN ROLE INVESTIGATION ACCESS TESTS ===
+Admin list investigations: 200 2 item(s)
+Admin get INV-2026-0001 (District-12): 200
+Admin get INV-2026-0358 (District-04): 200
+Admin create investigation for MPL-0002 (District-12): 200 {'investigation_id': 'INV-2026-0002', 'project_id': 'MPL-0002', 'work_name': 'Road Project 0001 - Duplicate Candidate', 'district': 'District-09', 'state': 'West Bengal', 'sanctioned_amount_lakh': 16.076969125, 'risk_score': 7, 'risk_level': 'LOW', 'status': 'NOT_STARTED', 'investigation_type': 'GENERAL_REVIEW', 'progress_percentage': 0, 'created_by': 'System Administrator (ADMIN)', 'assigned_to': None, 'assigned_role': None, 'reason': 'Admin test investigation', 'findings': [], 'audit_trail': [{'entry_id': 'AUD-0021', 'timestamp': '2026-09-17T16:38:43.286513Z', 'user_name': 'System Administrator', 'user_role': 'ADMIN', 'action': 'Created Investigation', 'previous_status': None, 'new_status': 'NOT_STARTED', 'comment': 'Administrative investigation initiated. Reason: Admin test investigation'}], 'final_recommendation': None, 'escalation_status': None, 'created_at': '2026-09-17T16:38:43.286513Z', 'updated_at': '2026-09-17T16:38:43.286513Z', 'due_date': '2026-10-08T16:38:43.286513Z', 'is_demo': False}
+
+=== 6. UNAUTHENTICATED TESTS ===
+Unauthenticated GET /api/investigations: 200
+Unauthenticated GET /api/investigations/INV-2026-0358: 200
+Unauthenticated POST /api/investigations: 401

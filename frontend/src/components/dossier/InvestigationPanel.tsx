@@ -401,14 +401,12 @@ export const InvestigationPanel: React.FC<InvestigationPanelProps> = ({
                     Start Investigation
                   </button>
                 )}
-                {isMoSPI && (
-                  <button
-                    onClick={() => setShowAssignModal(true)}
-                    className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
-                  >
-                    Assign / Reassign
-                  </button>
-                )}
+                <button
+                  onClick={() => setShowAssignModal(true)}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Assign / Reassign
+                </button>
                 <button
                   onClick={() => setShowProgressModal(true)}
                   className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer"

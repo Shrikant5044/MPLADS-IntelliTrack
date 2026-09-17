@@ -32,6 +32,9 @@ class TestComparableBenchmarking(unittest.TestCase):
         cls.projects_df = cls.data["projects"]
         cls.engine = ProjectBenchmarkingEngine()
         cls.client = TestClient(app)
+        login_resp = cls.client.post("/api/auth/login", json={"username": "mospi_officer", "password": "MoSPI@2026"})
+        token = login_resp.json()["access_token"]
+        cls.auth_headers = {"Authorization": f"Bearer {token}"}
 
     def test_01_sufficient_peers(self):
         """Verify project with sufficient peers returns valid statistics."""
@@ -105,13 +108,13 @@ class TestComparableBenchmarking(unittest.TestCase):
         self.assertGreater(len(normal_projects), 200)
 
     def test_08_unknown_project_returns_404(self):
-        """Verify API returns 404 for unknown project ID."""
-        resp = self.client.get("/api/analytics/benchmark/INVALID_PID_9999")
+        """Verify API returns 404 for unknown project ID when authenticated."""
+        resp = self.client.get("/api/analytics/benchmark/INVALID_PID_9999", headers=self.auth_headers)
         self.assertEqual(resp.status_code, 404)
 
     def test_09_api_endpoints(self):
         """Verify GET /api/analytics/benchmark and pagination."""
-        resp = self.client.get("/api/analytics/benchmark?limit=10")
+        resp = self.client.get("/api/analytics/benchmark?limit=10", headers=self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data["total"], 500)
@@ -119,7 +122,7 @@ class TestComparableBenchmarking(unittest.TestCase):
         self.assertIn("summary", data)
 
         # Single project endpoint
-        resp_single = self.client.get("/api/analytics/benchmark/MPL-0008")
+        resp_single = self.client.get("/api/analytics/benchmark/MPL-0008", headers=self.auth_headers)
         self.assertEqual(resp_single.status_code, 200)
         self.assertEqual(resp_single.json()["project_id"], "MPL-0008")
 

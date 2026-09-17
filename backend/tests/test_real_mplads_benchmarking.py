@@ -35,6 +35,9 @@ class TestRealMPLADSBenchmarkingConfigA(unittest.TestCase):
         cls.client = TestClient(app)
         cls.loader = get_real_data_loader()
         cls.engine = get_real_benchmark_engine()
+        login_resp = cls.client.post("/api/auth/login", json={"username": "mospi_officer", "password": "MoSPI@2026"})
+        token = login_resp.json()["access_token"]
+        cls.auth_headers = {"Authorization": f"Bearer {token}"}
 
     def test_01_text_preprocessing_boilerplate_removal(self):
         """Verify geographic/administrative boilerplate is cleaned while preserving asset terms."""
@@ -202,13 +205,14 @@ class TestRealMPLADSBenchmarkingConfigA(unittest.TestCase):
     def test_15_api_endpoints_contract_compatibility_and_winning_query(self):
         """Verify API endpoints return valid response models with winning_query under Max-Pooling."""
         # 1. Works endpoint
-        r1 = self.client.get("/api/real-mplads/works?dataset=recommended&limit=5")
+        r1 = self.client.get("/api/real-mplads/works?dataset=recommended&limit=5", headers=self.auth_headers)
         self.assertEqual(r1.status_code, 200)
         self.assertEqual(r1.json()["count"], 5)
 
         # 2. Benchmark endpoint for custom prototype
         r2 = self.client.get(
-            "/api/real-mplads/benchmark?description=Road+Project+0001&amount=1681000&state=Karnataka&category=Road&dataset=recommended"
+            "/api/real-mplads/benchmark?description=Road+Project+0001&amount=1681000&state=Karnataka&category=Road&dataset=recommended",
+            headers=self.auth_headers,
         )
         self.assertEqual(r2.status_code, 200)
         d2 = r2.json()
@@ -220,7 +224,7 @@ class TestRealMPLADSBenchmarkingConfigA(unittest.TestCase):
             self.assertIn("winning_query", p)
 
         # 3. Stats endpoint
-        r3 = self.client.get("/api/real-mplads/stats")
+        r3 = self.client.get("/api/real-mplads/stats", headers=self.auth_headers)
         self.assertEqual(r3.status_code, 200)
         self.assertEqual(r3.json()["total_recommended_works"], 14745)
 

@@ -34,6 +34,9 @@ class TestEarlyWarningForecasting(unittest.TestCase):
         cls.financials_df = cls.data["financials"]
         cls.engine = EarlyWarningForecastEngine()
         cls.client = TestClient(app)
+        login_resp = cls.client.post("/api/auth/login", json={"username": "mospi_officer", "password": "MoSPI@2026"})
+        token = login_resp.json()["access_token"]
+        cls.auth_headers = {"Authorization": f"Bearer {token}"}
 
     def test_01_active_project_sufficient_history(self):
         """Verify active project with history returns valid velocity and dates."""
@@ -94,13 +97,13 @@ class TestEarlyWarningForecasting(unittest.TestCase):
         self.assertGreater(len(delayed), 0)
 
     def test_07_unknown_project_returns_404(self):
-        """Verify API returns 404 for unknown project ID."""
-        resp = self.client.get("/api/analytics/forecast/UNKNOWN_PID_9999")
+        """Verify API returns 404 for unknown project ID when authenticated."""
+        resp = self.client.get("/api/analytics/forecast/UNKNOWN_PID_9999", headers=self.auth_headers)
         self.assertEqual(resp.status_code, 404)
 
     def test_08_api_endpoints(self):
         """Verify GET /api/analytics/forecast and pagination."""
-        resp = self.client.get("/api/analytics/forecast?limit=10")
+        resp = self.client.get("/api/analytics/forecast?limit=10", headers=self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data["total"], 500)
@@ -108,7 +111,7 @@ class TestEarlyWarningForecasting(unittest.TestCase):
         self.assertIn("summary", data)
 
         # Single project endpoint
-        resp_single = self.client.get("/api/analytics/forecast/MPL-0008")
+        resp_single = self.client.get("/api/analytics/forecast/MPL-0008", headers=self.auth_headers)
         self.assertEqual(resp_single.status_code, 200)
         self.assertEqual(resp_single.json()["project_id"], "MPL-0008")
 

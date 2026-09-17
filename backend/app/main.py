@@ -347,6 +347,16 @@ def admin_delete_user(
 
 # =============================================================
 # CORE INTELLIGENCE ROUTES (WITH BACKEND RBAC SCOPING)
+def check_operational_access(current_user: UserResponse) -> None:
+    if current_user.role == UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Admin users do not have operational intelligence privileges.",
+        )
+
+
+# =============================================================
+# PROJECTS / DOSSIER APIS
 # =============================================================
 @app.get(
     "/api/projects",
@@ -368,25 +378,26 @@ def get_projects(
     ),
     district: Optional[str] = Query(default=None, description="Filter by district"),
     state: Optional[str] = Query(default=None, description="Filter by state"),
-    current_user: Optional[UserResponse] = Depends(get_optional_current_user),
+    current_user: UserResponse = Depends(get_current_user),
 ):
     """
     Retrieve project records from cached MPLADS projects dataset.
     If authenticated as DISTRICT_AUTHORITY, backend strictly filters to the assigned district
     and rejects foreign district queries with HTTP 403 Forbidden.
     """
+    check_operational_access(current_user)
     cache = get_cache()
     records = cache.projects_records
 
     # Backend RBAC enforcement for District Authority
-    if current_user and current_user.role == UserRole.DISTRICT_AUTHORITY:
-        assigned = current_user.assigned_district
-        if district and district.strip().lower() != (assigned or "").strip().lower():
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
+        assigned = (current_user.assigned_district or "").strip().lower()
+        if district and district.strip().lower() != assigned:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Forbidden: You are only authorized to access records for district '{assigned}'. Requested: '{district}'.",
+                detail=f"Forbidden: You are only authorized to access records for district '{current_user.assigned_district}'. Requested: '{district}'.",
             )
-        records = [p for p in records if p.get("district", "").strip().lower() == (assigned or "").strip().lower()]
+        records = [p for p in records if p.get("district", "").strip().lower() == assigned]
     else:
         if district:
             d_clean = district.strip().lower()
@@ -434,17 +445,18 @@ def get_anomalies(
         ge=0,
         description="Offset for pagination (default: 0)",
     ),
-    current_user: Optional[UserResponse] = Depends(get_optional_current_user),
+    current_user: UserResponse = Depends(get_current_user),
 ):
     """
     Returns detected anomalies across all projects with fast in-memory filtering and pagination.
     If authenticated as DISTRICT_AUTHORITY, scoped strictly to assigned district.
     """
+    check_operational_access(current_user)
     cache = get_cache()
     filtered_anomalies = cache.all_anomalies
 
     # RBAC Scoping
-    if current_user and current_user.role == UserRole.DISTRICT_AUTHORITY:
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
         assigned = (current_user.assigned_district or "").strip().lower()
         dist_pids = {
             pid for pid, p in cache.projects_by_id.items()
@@ -478,11 +490,12 @@ def get_anomalies(
 )
 def get_project_anomalies(
     project_id: str,
-    current_user: Optional[UserResponse] = Depends(get_optional_current_user),
+    current_user: UserResponse = Depends(get_current_user),
 ):
     """
     Returns detected anomalies for a specific project by project_id in O(1) time.
     """
+    check_operational_access(current_user)
     cache = get_cache()
     if project_id not in cache.project_ids_set:
         raise HTTPException(
@@ -491,7 +504,7 @@ def get_project_anomalies(
         )
 
     # RBAC Scoping
-    if current_user and current_user.role == UserRole.DISTRICT_AUTHORITY:
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
         p = cache.projects_by_id.get(project_id, {})
         p_dist = p.get("district", "")
         if p_dist.strip().lower() != (current_user.assigned_district or "").strip().lower():
@@ -531,17 +544,18 @@ def get_risk_profiles(
         ge=0,
         description="Offset for pagination (default: 0)",
     ),
-    current_user: Optional[UserResponse] = Depends(get_optional_current_user),
+    current_user: UserResponse = Depends(get_current_user),
 ):
     """
     Returns precomputed risk profiles fusing 31 deterministic anomaly rules and supporting unsupervised ML evidence.
     If authenticated as DISTRICT_AUTHORITY, scoped strictly to assigned district.
     """
+    check_operational_access(current_user)
     cache = get_cache()
     filtered_profiles = cache.risk_profiles
 
     # RBAC Scoping
-    if current_user and current_user.role == UserRole.DISTRICT_AUTHORITY:
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
         assigned = (current_user.assigned_district or "").strip().lower()
         filtered_profiles = [
             rp for rp in filtered_profiles
@@ -572,11 +586,12 @@ def get_risk_profiles(
 )
 def get_project_risk(
     project_id: str,
-    current_user: Optional[UserResponse] = Depends(get_optional_current_user),
+    current_user: UserResponse = Depends(get_current_user),
 ):
     """
     Retrieves the precomputed complete risk profile for a single project by project_id in O(1) time.
     """
+    check_operational_access(current_user)
     cache = get_cache()
     if project_id not in cache.project_ids_set:
         raise HTTPException(
@@ -585,7 +600,7 @@ def get_project_risk(
         )
 
     # RBAC Scoping
-    if current_user and current_user.role == UserRole.DISTRICT_AUTHORITY:
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
         p = cache.projects_by_id.get(project_id, {})
         p_dist = p.get("district", "")
         if p_dist.strip().lower() != (current_user.assigned_district or "").strip().lower():
@@ -626,16 +641,17 @@ def get_ml_anomalies(
         ge=0,
         description="Offset for pagination (default: 0)",
     ),
-    current_user: Optional[UserResponse] = Depends(get_optional_current_user),
+    current_user: UserResponse = Depends(get_current_user),
 ):
     """
     Returns precomputed unsupervised Isolation Forest anomaly predictions across all projects.
     """
+    check_operational_access(current_user)
     cache = get_cache()
     filtered_preds = cache.ml_predictions
 
     # RBAC Scoping
-    if current_user and current_user.role == UserRole.DISTRICT_AUTHORITY:
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
         assigned = (current_user.assigned_district or "").strip().lower()
         filtered_preds = [
             m for m in filtered_preds
@@ -666,11 +682,12 @@ def get_ml_anomalies(
 )
 def get_project_ml_anomaly(
     project_id: str,
-    current_user: Optional[UserResponse] = Depends(get_optional_current_user),
+    current_user: UserResponse = Depends(get_current_user),
 ):
     """
     Retrieves the precomputed ML anomaly prediction for a single project by project_id in O(1) time.
     """
+    check_operational_access(current_user)
     cache = get_cache()
     if project_id not in cache.project_ids_set:
         raise HTTPException(
@@ -679,7 +696,7 @@ def get_project_ml_anomaly(
         )
 
     # RBAC Scoping
-    if current_user and current_user.role == UserRole.DISTRICT_AUTHORITY:
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
         p = cache.projects_by_id.get(project_id, {})
         p_dist = p.get("district", "")
         if p_dist.strip().lower() != (current_user.assigned_district or "").strip().lower():
@@ -696,7 +713,6 @@ def get_project_ml_anomaly(
         )
 
     return pred
-
 
 
 @app.get(
@@ -727,12 +743,22 @@ def get_benchmarks(
         ge=0,
         description="Offset for pagination (default: 0)",
     ),
+    current_user: UserResponse = Depends(get_current_user),
 ):
     """
     Returns precomputed statistical benchmark evaluations comparing each project against peer cohorts.
+    If authenticated as DISTRICT_AUTHORITY, scoped strictly to assigned district.
     """
+    check_operational_access(current_user)
     cache = get_cache()
     filtered = cache.benchmark_results
+
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
+        assigned = (current_user.assigned_district or "").strip().lower()
+        filtered = [
+            b for b in filtered
+            if cache.projects_by_id.get(b.project_id, {}).get("district", "").strip().lower() == assigned
+        ]
 
     if status_filter:
         filtered = [b for b in filtered if b.benchmark_status == status_filter]
@@ -758,17 +784,30 @@ def get_benchmarks(
     tags=["Analytics"],
     summary="Get comparable peer benchmark evaluation for a single project",
 )
-def get_project_benchmark(project_id: str):
+def get_project_benchmark(
+    project_id: str,
+    current_user: UserResponse = Depends(get_current_user),
+):
     """
     Retrieves the comparable benchmark evaluation for a specific project by project_id in O(1) time.
     Returns 404 if project_id is unknown.
     """
+    check_operational_access(current_user)
     cache = get_cache()
     if project_id not in cache.project_ids_set:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Project with ID '{project_id}' not found.",
         )
+
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
+        p = cache.projects_by_id.get(project_id, {})
+        p_dist = p.get("district", "")
+        if p_dist.strip().lower() != (current_user.assigned_district or "").strip().lower():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Forbidden: Project '{project_id}' belongs to district '{p_dist}', which is outside your assigned district '{current_user.assigned_district}'.",
+            )
 
     result = cache.benchmark_by_project.get(project_id)
     if not result:
@@ -803,12 +842,22 @@ def get_forecasts(
         ge=0,
         description="Offset for pagination (default: 0)",
     ),
+    current_user: UserResponse = Depends(get_current_user),
 ):
     """
     Returns precomputed empirical progress trajectory and cost forecasts across all projects.
+    If authenticated as DISTRICT_AUTHORITY, scoped strictly to assigned district.
     """
+    check_operational_access(current_user)
     cache = get_cache()
     filtered = cache.forecast_results
+
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
+        assigned = (current_user.assigned_district or "").strip().lower()
+        filtered = [
+            f for f in filtered
+            if cache.projects_by_id.get(f.project_id, {}).get("district", "").strip().lower() == assigned
+        ]
 
     if status_filter:
         filtered = [f for f in filtered if f.trajectory_status == status_filter]
@@ -832,17 +881,30 @@ def get_forecasts(
     tags=["Analytics"],
     summary="Get empirical early-warning progress trajectory and cost forecast for a single project",
 )
-def get_project_forecast(project_id: str):
+def get_project_forecast(
+    project_id: str,
+    current_user: UserResponse = Depends(get_current_user),
+):
     """
     Retrieves the empirical progress trajectory and cost forecast for a specific project by project_id in O(1) time.
     Returns 404 if project_id is unknown.
     """
+    check_operational_access(current_user)
     cache = get_cache()
     if project_id not in cache.project_ids_set:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Project with ID '{project_id}' not found.",
         )
+
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
+        p = cache.projects_by_id.get(project_id, {})
+        p_dist = p.get("district", "")
+        if p_dist.strip().lower() != (current_user.assigned_district or "").strip().lower():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Forbidden: Project '{project_id}' belongs to district '{p_dist}', which is outside your assigned district '{current_user.assigned_district}'.",
+            )
 
     result = cache.forecast_by_project.get(project_id)
     if not result:
@@ -885,17 +947,18 @@ def get_audit_queue(
         ge=0,
         description="Offset for pagination (default: 0)",
     ),
-    current_user: Optional[UserResponse] = Depends(get_optional_current_user),
+    current_user: UserResponse = Depends(get_current_user),
 ):
     """
     Returns precomputed prioritized decision-support audit queue ranked by compounded multi-signal risk and financial exposure.
     If authenticated as DISTRICT_AUTHORITY, scoped strictly to assigned district.
     """
+    check_operational_access(current_user)
     cache = get_cache()
     filtered = cache.audit_queue_items
 
     # RBAC Scoping
-    if current_user and current_user.role == UserRole.DISTRICT_AUTHORITY:
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
         assigned = (current_user.assigned_district or "").strip().lower()
         if district and district.strip().lower() != assigned:
             raise HTTPException(
@@ -939,17 +1002,23 @@ def get_audit_queue(
 )
 def list_investigations(
     district: Optional[str] = Query(default=None, description="Filter by district"),
-    current_user: Optional[UserResponse] = Depends(get_optional_current_user),
+    current_user: UserResponse = Depends(get_current_user),
 ):
     """
     Returns list of administrative cases.
-    If authenticated as DISTRICT_AUTHORITY, returns cases within assigned district only
-    and rejects foreign district queries with HTTP 403 Forbidden.
+    Authorized for MOSPI_OFFICER (all districts) or DISTRICT_AUTHORITY (assigned district).
+    Admin users receive 403 Forbidden.
     """
+    if current_user.role == UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Admin users do not have investigation privileges.",
+        )
+
     store = get_investigation_store()
     target_dist = district
 
-    if current_user and current_user.role == UserRole.DISTRICT_AUTHORITY:
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
         assigned = current_user.assigned_district
         if district and district.strip().lower() != (assigned or "").strip().lower():
             raise HTTPException(
@@ -969,11 +1038,19 @@ def list_investigations(
 )
 def get_investigation(
     investigation_id: str,
-    current_user: Optional[UserResponse] = Depends(get_optional_current_user),
+    current_user: UserResponse = Depends(get_current_user),
 ):
     """
     Returns the investigation record and its complete chronological audit log.
+    Authorized for MOSPI_OFFICER (all districts) or DISTRICT_AUTHORITY (assigned district).
+    Admin users receive 403 Forbidden.
     """
+    if current_user.role == UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Admin users do not have investigation privileges.",
+        )
+
     store = get_investigation_store()
     inv = store.get_by_id(investigation_id)
     if not inv:
@@ -982,7 +1059,7 @@ def get_investigation(
             detail=f"Investigation with ID '{investigation_id}' not found.",
         )
 
-    if current_user and current_user.role == UserRole.DISTRICT_AUTHORITY:
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
         if inv.district.strip().lower() != (current_user.assigned_district or "").strip().lower():
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -1000,17 +1077,25 @@ def get_investigation(
 )
 def get_project_investigation(
     project_id: str,
-    current_user: Optional[UserResponse] = Depends(get_optional_current_user),
+    current_user: UserResponse = Depends(get_current_user),
 ):
     """
     Returns the active investigation for a given project if one exists.
+    Authorized for MOSPI_OFFICER (all districts) or DISTRICT_AUTHORITY (assigned district).
+    Admin users receive 403 Forbidden.
     """
+    if current_user.role == UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Admin users do not have investigation privileges.",
+        )
+
     store = get_investigation_store()
     inv = store.get_by_project(project_id)
     if not inv:
         return None
 
-    if current_user and current_user.role == UserRole.DISTRICT_AUTHORITY:
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
         if inv.district.strip().lower() != (current_user.assigned_district or "").strip().lower():
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -1032,7 +1117,14 @@ def create_investigation(
 ):
     """
     Creates an investigation record. Authorized for MOSPI_OFFICER or DISTRICT_AUTHORITY (within assigned district).
+    Admin users receive 403 Forbidden.
     """
+    if current_user.role == UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Admin users do not have investigation privileges.",
+        )
+
     cache = get_cache()
     if req.project_id not in cache.project_ids_set:
         raise HTTPException(
@@ -1084,7 +1176,15 @@ def assign_investigation(
 ):
     """
     Assigns authority to execute local verification.
+    Authorized for MOSPI_OFFICER or DISTRICT_AUTHORITY (within assigned district).
+    Admin users receive 403 Forbidden.
     """
+    if current_user.role == UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Admin users do not have investigation privileges.",
+        )
+
     store = get_investigation_store()
     inv = store.get_by_id(investigation_id)
     if not inv:
@@ -1118,7 +1218,15 @@ def update_investigation_status(
 ):
     """
     Transitions case status (e.g. ASSIGNED -> IN_PROGRESS -> UNDER_REVIEW).
+    Authorized for MOSPI_OFFICER or DISTRICT_AUTHORITY (within assigned district).
+    Admin users receive 403 Forbidden.
     """
+    if current_user.role == UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Admin users do not have investigation privileges.",
+        )
+
     store = get_investigation_store()
     inv = store.get_by_id(investigation_id)
     if not inv:
@@ -1151,7 +1259,15 @@ def update_investigation_progress(
 ):
     """
     Updates completion progress percentage (0-100%).
+    Authorized for MOSPI_OFFICER or DISTRICT_AUTHORITY (within assigned district).
+    Admin users receive 403 Forbidden.
     """
+    if current_user.role == UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Admin users do not have investigation privileges.",
+        )
+
     store = get_investigation_store()
     inv = store.get_by_id(investigation_id)
     if not inv:
@@ -1184,7 +1300,15 @@ def add_investigation_finding(
 ):
     """
     Records an official observation or evidentiary finding in the case docket.
+    Authorized for MOSPI_OFFICER or DISTRICT_AUTHORITY (within assigned district).
+    Admin users receive 403 Forbidden.
     """
+    if current_user.role == UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Admin users do not have investigation privileges.",
+        )
+
     store = get_investigation_store()
     inv = store.get_by_id(investigation_id)
     if not inv:
@@ -1217,7 +1341,15 @@ def escalate_investigation(
 ):
     """
     Escalates case to ESCALATED status with recorded rationale.
+    Authorized for MOSPI_OFFICER or DISTRICT_AUTHORITY (within assigned district).
+    Admin users receive 403 Forbidden.
     """
+    if current_user.role == UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Admin users do not have investigation privileges.",
+        )
+
     store = get_investigation_store()
     inv = store.get_by_id(investigation_id)
     if not inv:
@@ -1249,7 +1381,15 @@ def resolve_investigation(
 ):
     """
     Concludes case with final statutory recommendations.
+    Authorized for MOSPI_OFFICER or DISTRICT_AUTHORITY (within assigned district).
+    Admin users receive 403 Forbidden.
     """
+    if current_user.role == UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: Admin users do not have investigation privileges.",
+        )
+
     store = get_investigation_store()
     inv = store.get_by_id(investigation_id)
     if not inv:
@@ -1276,15 +1416,25 @@ def resolve_investigation(
     tags=["Analytics"],
     summary="Get macro-level regional risk and performance analytics across all districts",
 )
-def get_district_analytics():
+def get_district_analytics(
+    current_user: UserResponse = Depends(get_current_user),
+):
     """
     Returns precomputed district-level risk aggregations, market concentration shares, and statutory anomaly density.
+    If authenticated as DISTRICT_AUTHORITY, scoped strictly to assigned district.
     """
+    check_operational_access(current_user)
     cache = get_cache()
+    profiles = cache.district_profiles
+
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
+        assigned = (current_user.assigned_district or "").strip().lower()
+        profiles = [dp for dp in profiles if dp.district.strip().lower() == assigned]
+
     return {
-        "total": len(cache.district_profiles),
+        "total": len(profiles),
         "summary": cache.district_summary,
-        "data": cache.district_profiles,
+        "data": profiles,
     }
 
 
@@ -1294,14 +1444,25 @@ def get_district_analytics():
     tags=["Analytics", "Geospatial"],
     summary="Get geospatial data quality and coordinate validation metrics",
 )
-def get_geospatial_quality():
+def get_geospatial_quality(
+    current_user: UserResponse = Depends(get_current_user),
+):
     """
     Returns portfolio-wide geospatial accuracy metrics, boundary validation stats, and territorial integrity counts.
+    If authenticated as DISTRICT_AUTHORITY, calculated strictly for projects within assigned district.
     """
+    check_operational_access(current_user)
     cache = get_cache()
+    from app.analytics_engine.geospatial import get_geospatial_quality_metrics
+
+    projects_df = cache.datasets.get("projects")
+    if current_user.role == UserRole.DISTRICT_AUTHORITY and projects_df is not None:
+        assigned = (current_user.assigned_district or "").strip().lower()
+        projects_df = projects_df[projects_df["district"].astype(str).str.strip().str.lower() == assigned]
+        return get_geospatial_quality_metrics(projects_df)
+
     if not cache.geospatial_quality:
-        from app.analytics_engine.geospatial import get_geospatial_quality_metrics
-        return get_geospatial_quality_metrics(cache.datasets.get("projects"))
+        return get_geospatial_quality_metrics(projects_df)
     return cache.geospatial_quality
 
 
@@ -1318,15 +1479,21 @@ def get_real_works(
     q: Optional[str] = Query(None, description="Search query across Work Description"),
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
+    current_user: UserResponse = Depends(get_current_user),
 ):
     """
     Returns paginated authentic records from official MPLADS portal exports without synthetic augmentation.
     """
+    check_operational_access(current_user)
     loader = get_real_data_loader()
     dataset_clean = dataset.lower().strip()
     records = loader.recommended_records if dataset_clean == "recommended" else loader.completed_records
 
     filtered = records
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
+        assigned = (current_user.assigned_district or "").strip().lower()
+        filtered = [r for r in filtered if not r.ida or r.ida.strip().lower() == assigned or assigned in r.ida.strip().lower() or assigned in r.work_description.strip().lower()]
+
     if state:
         st_clean = state.strip().lower()
         filtered = [r for r in filtered if r.state.strip().lower() == st_clean]
@@ -1366,11 +1533,32 @@ def benchmark_real_work(
     ida: Optional[str] = Query(None, description="Custom IDA context"),
     top_k: int = Query(5, ge=1, le=20),
     min_similarity: float = Query(0.35, ge=0.1, le=1.0),
+    current_user: UserResponse = Depends(get_current_user),
 ):
     """
     Finds genuinely comparable real works using TF-IDF n-gram text similarity + administrative hierarchy,
     and computes median peer costs, variances, and explainable benchmarking insights without fabricating linkages.
     """
+    check_operational_access(current_user)
+    cache = get_cache()
+
+    if current_user.role == UserRole.DISTRICT_AUTHORITY:
+        assigned = (current_user.assigned_district or "").strip().lower()
+        if ida and ida.strip().lower() != assigned:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Forbidden: You are only authorized to benchmark within assigned district '{current_user.assigned_district}'. Requested IDA: '{ida}'.",
+            )
+        if work_id is not None:
+            pid_str = f"MPL-{work_id:04d}"
+            if pid_str in cache.projects_by_id:
+                p_dist = cache.projects_by_id[pid_str].get("district", "")
+                if p_dist.strip().lower() != assigned:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"Forbidden: Project '{pid_str}' belongs to district '{p_dist}', which is outside your assigned district '{current_user.assigned_district}'.",
+                    )
+
     engine = get_real_benchmark_engine()
     dataset_clean = dataset.lower().strip()
 
@@ -1387,7 +1575,7 @@ def benchmark_real_work(
             amount=amount,
             state=state,
             category=category,
-            ida=ida,
+            ida=ida or (current_user.assigned_district if current_user.role == UserRole.DISTRICT_AUTHORITY else None),
             dataset=dataset_clean,
             top_k=top_k,
             min_composite_similarity=min_similarity,
@@ -1405,10 +1593,13 @@ def benchmark_real_work(
     tags=["Real MPLADS"],
     summary="Get summary metrics across the real MPLADS dataset repository",
 )
-def get_real_stats():
+def get_real_stats(
+    current_user: UserResponse = Depends(get_current_user),
+):
     """
     Returns summary statistics across recommended works, completed works, and macro financial datasets.
     """
+    check_operational_access(current_user)
     loader = get_real_data_loader()
     return loader.get_stats()
 

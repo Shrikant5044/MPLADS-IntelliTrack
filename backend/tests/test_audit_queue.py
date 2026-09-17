@@ -30,6 +30,9 @@ class TestPrioritizedAuditQueue(unittest.TestCase):
         cls.cache = get_cache()
         cls.client = TestClient(app)
         cls.engine = PrioritizedAuditQueueEngine()
+        login_resp = cls.client.post("/api/auth/login", json={"username": "mospi_officer", "password": "MoSPI@2026"})
+        token = login_resp.json()["access_token"]
+        cls.auth_headers = {"Authorization": f"Bearer {token}"}
 
     def test_01_priority_one_is_highest_risk_project(self):
         """Verify priority #1 item is the highest risk project (MPL-0358)."""
@@ -67,26 +70,26 @@ class TestPrioritizedAuditQueue(unittest.TestCase):
     def test_05_api_filters_and_pagination(self):
         """Verify GET /api/analytics/audit-queue filters by risk_level, urgency, and investigation_type."""
         # Risk level filter
-        resp_high = self.client.get("/api/analytics/audit-queue?risk_level=HIGH")
+        resp_high = self.client.get("/api/analytics/audit-queue?risk_level=HIGH", headers=self.auth_headers)
         self.assertEqual(resp_high.status_code, 200)
         data_high = resp_high.json()
         self.assertEqual(data_high["total"], 26)
         self.assertEqual(data_high["data"][0]["project_id"], "MPL-0358")
 
         # Investigation type filter
-        resp_dup = self.client.get("/api/analytics/audit-queue?investigation_type=DUPLICATE_GEO_VERIFICATION")
+        resp_dup = self.client.get("/api/analytics/audit-queue?investigation_type=DUPLICATE_GEO_VERIFICATION", headers=self.auth_headers)
         self.assertEqual(resp_dup.status_code, 200)
         data_dup = resp_dup.json()
         self.assertEqual(data_dup["total"], 24)
 
         # Pagination
-        resp_page = self.client.get("/api/analytics/audit-queue?limit=15&offset=0")
+        resp_page = self.client.get("/api/analytics/audit-queue?limit=15&offset=0", headers=self.auth_headers)
         self.assertEqual(resp_page.status_code, 200)
         self.assertEqual(len(resp_page.json()["data"]), 15)
 
     def test_06_district_analytics_endpoint(self):
         """Verify GET /api/analytics/districts returns all 30 districts ranked by risk."""
-        resp = self.client.get("/api/analytics/districts")
+        resp = self.client.get("/api/analytics/districts", headers=self.auth_headers)
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertEqual(data["total"], 30)

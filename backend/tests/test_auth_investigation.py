@@ -192,6 +192,150 @@ class TestAuthInvestigation(unittest.TestCase):
         self.assertIn("CRITICAL SECURITY CONFIGURATION ERROR", proc.stderr)
         self.assertIn("JWT_SECRET_KEY", proc.stderr)
 
+    # 7. ENFORCED RBAC SECURITY TESTS (GAPS 1, 2, 3)
+    def test_13_unauthenticated_investigation_endpoints_return_401(self):
+        self.assertEqual(self.client.get("/api/investigations").status_code, 401)
+        self.assertEqual(self.client.get("/api/investigations/INV-2026-0358").status_code, 401)
+        self.assertEqual(self.client.get("/api/investigations/project/MPL-0358").status_code, 401)
+
+    def test_14_admin_investigation_endpoints_return_403(self):
+        login_resp = self.client.post("/api/auth/login", json={"username": "admin_user", "password": "Admin@2026"})
+        token = login_resp.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        self.assertEqual(self.client.get("/api/investigations", headers=headers).status_code, 403)
+        self.assertEqual(self.client.get("/api/investigations/INV-2026-0358", headers=headers).status_code, 403)
+        self.assertEqual(self.client.get("/api/investigations/project/MPL-0358", headers=headers).status_code, 403)
+
+        self.assertEqual(self.client.post("/api/investigations", json={"project_id": "MPL-0358", "reason": "Test"}, headers=headers).status_code, 403)
+        self.assertEqual(self.client.put("/api/investigations/INV-2026-0358/assign", json={"assigned_to": "Officer A", "assigned_role": "District Authority"}, headers=headers).status_code, 403)
+        self.assertEqual(self.client.put("/api/investigations/INV-2026-0358/status", json={"status": "IN_PROGRESS", "comment": "Test"}, headers=headers).status_code, 403)
+        self.assertEqual(self.client.put("/api/investigations/INV-2026-0358/progress", json={"progress_percentage": 50}, headers=headers).status_code, 403)
+        self.assertEqual(self.client.post("/api/investigations/INV-2026-0358/findings", json={"finding_text": "Test"}, headers=headers).status_code, 403)
+        self.assertEqual(self.client.post("/api/investigations/INV-2026-0358/escalate", json={"reason": "Test"}, headers=headers).status_code, 403)
+        self.assertEqual(self.client.post("/api/investigations/INV-2026-0358/resolve", json={"final_recommendation": "Test"}, headers=headers).status_code, 403)
+
+    def test_15_district_authority_assignment_scoping(self):
+        login_resp = self.client.post("/api/auth/login", json={"username": "district_officer_04", "password": "District@2026"})
+        token = login_resp.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # In-scope assignment on District-04 investigation INV-2026-0358 succeeds
+        resp_in = self.client.put(
+            "/api/investigations/INV-2026-0358/assign",
+            json={"assigned_to": "Field Inspector B", "assigned_role": "District Authority", "comment": "Local assignment"},
+            headers=headers
+        )
+        self.assertEqual(resp_in.status_code, 200)
+
+        # Out-of-scope assignment on District-12 investigation INV-2026-0001 fails with 403 Forbidden
+        resp_out = self.client.put(
+            "/api/investigations/INV-2026-0001/assign",
+            json={"assigned_to": "Field Inspector B", "assigned_role": "District Authority"},
+            headers=headers
+        )
+        self.assertEqual(resp_out.status_code, 403)
+
+    def test_16_unauthenticated_operational_endpoints_return_401(self):
+        endpoints = [
+            "/api/projects",
+            "/api/anomalies",
+            "/api/anomalies/MPL-0358",
+            "/api/risk",
+            "/api/risk/MPL-0358",
+            "/api/ml/anomalies",
+            "/api/ml/anomalies/MPL-0358",
+            "/api/analytics/benchmark",
+            "/api/analytics/benchmark/MPL-0358",
+            "/api/analytics/forecast",
+            "/api/analytics/forecast/MPL-0358",
+            "/api/analytics/audit-queue",
+            "/api/analytics/districts",
+            "/api/analytics/geospatial/quality",
+            "/api/real-mplads/works",
+            "/api/real-mplads/benchmark?work_id=358",
+            "/api/real-mplads/stats",
+        ]
+        for ep in endpoints:
+            res = self.client.get(ep)
+            self.assertEqual(res.status_code, 401, msg=f"Endpoint {ep} failed to return 401 for unauthenticated request")
+
+    def test_17_admin_operational_endpoints_return_403(self):
+        login_resp = self.client.post("/api/auth/login", json={"username": "admin_user", "password": "Admin@2026"})
+        token = login_resp.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        endpoints = [
+            "/api/projects",
+            "/api/anomalies",
+            "/api/anomalies/MPL-0358",
+            "/api/risk",
+            "/api/risk/MPL-0358",
+            "/api/ml/anomalies",
+            "/api/ml/anomalies/MPL-0358",
+            "/api/analytics/benchmark",
+            "/api/analytics/benchmark/MPL-0358",
+            "/api/analytics/forecast",
+            "/api/analytics/forecast/MPL-0358",
+            "/api/analytics/audit-queue",
+            "/api/analytics/districts",
+            "/api/analytics/geospatial/quality",
+            "/api/real-mplads/works",
+            "/api/real-mplads/benchmark?work_id=358",
+            "/api/real-mplads/stats",
+        ]
+        for ep in endpoints:
+            res = self.client.get(ep, headers=headers)
+            self.assertEqual(res.status_code, 403, msg=f"Endpoint {ep} failed to return 403 for ADMIN role")
+
+    def test_18_district_authority_scoped_analytics_and_benchmarking(self):
+        login_resp = self.client.post("/api/auth/login", json={"username": "district_officer_04", "password": "District@2026"})
+        token = login_resp.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # In-scope single project lookups (District-04 project MPL-0007)
+        self.assertEqual(self.client.get("/api/anomalies/MPL-0007", headers=headers).status_code, 200)
+        self.assertEqual(self.client.get("/api/risk/MPL-0007", headers=headers).status_code, 200)
+        self.assertEqual(self.client.get("/api/ml/anomalies/MPL-0007", headers=headers).status_code, 200)
+        self.assertEqual(self.client.get("/api/analytics/benchmark/MPL-0007", headers=headers).status_code, 200)
+        self.assertEqual(self.client.get("/api/analytics/forecast/MPL-0007", headers=headers).status_code, 200)
+
+        # Out-of-scope single project lookups (District-21 project MPL-0001) -> 403 Forbidden
+        self.assertEqual(self.client.get("/api/anomalies/MPL-0001", headers=headers).status_code, 403)
+        self.assertEqual(self.client.get("/api/risk/MPL-0001", headers=headers).status_code, 403)
+        self.assertEqual(self.client.get("/api/ml/anomalies/MPL-0001", headers=headers).status_code, 403)
+        self.assertEqual(self.client.get("/api/analytics/benchmark/MPL-0001", headers=headers).status_code, 403)
+        self.assertEqual(self.client.get("/api/analytics/forecast/MPL-0001", headers=headers).status_code, 403)
+
+    def test_19_mospi_full_national_operational_access(self):
+        login_resp = self.client.post("/api/auth/login", json={"username": "mospi_officer", "password": "MoSPI@2026"})
+        token = login_resp.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        endpoints = [
+            "/api/projects",
+            "/api/anomalies",
+            "/api/anomalies/MPL-0001",
+            "/api/risk",
+            "/api/risk/MPL-0001",
+            "/api/ml/anomalies",
+            "/api/ml/anomalies/MPL-0001",
+            "/api/analytics/benchmark",
+            "/api/analytics/benchmark/MPL-0001",
+            "/api/analytics/forecast",
+            "/api/analytics/forecast/MPL-0001",
+            "/api/analytics/audit-queue",
+            "/api/analytics/districts",
+            "/api/analytics/geospatial/quality",
+            "/api/real-mplads/works",
+            "/api/real-mplads/stats",
+        ]
+        for ep in endpoints:
+            res = self.client.get(ep, headers=headers)
+            self.assertEqual(res.status_code, 200, msg=f"Endpoint {ep} failed to return 200 for MOSPI_OFFICER role")
+
 
 if __name__ == "__main__":
     unittest.main()
+
+
