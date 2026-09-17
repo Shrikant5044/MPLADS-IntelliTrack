@@ -1,7 +1,9 @@
-﻿import os
+import os
+from pathlib import Path
 import threading
 from typing import Dict, List, Optional
 import pandas as pd
+from app.config import settings
 from app.real_mplads.models import RealWorkRecord, RealMPLADSStatsResponse
 
 
@@ -13,8 +15,23 @@ class RealMPLADSLoader:
     _instance: Optional["RealMPLADSLoader"] = None
     _lock = threading.Lock()
 
-    def __init__(self, data_dir: str = "data/real_mplads"):
-        self.data_dir = data_dir
+    def __init__(self, data_dir: Optional[str] = None):
+        if data_dir:
+            self.data_dir = data_dir
+        else:
+            candidate_dirs = [
+                settings.DATA_REAL_MPLADS_DIR,
+                Path(__file__).resolve().parent.parent.parent.parent / "data" / "real_mplads",
+                Path(__file__).resolve().parent.parent.parent / "data" / "real_mplads",
+                Path("../data/real_mplads").resolve(),
+                Path("data/real_mplads").resolve(),
+            ]
+            self.data_dir = str(candidate_dirs[0])
+            for d in candidate_dirs:
+                p = Path(d)
+                if p.is_dir() and (p / "mplads_recommended_works_2026-08-25.csv").is_file():
+                    self.data_dir = str(p.resolve())
+                    break
         self.recommended_df: pd.DataFrame = pd.DataFrame()
         self.completed_df: pd.DataFrame = pd.DataFrame()
         self.expenditures_df: pd.DataFrame = pd.DataFrame()

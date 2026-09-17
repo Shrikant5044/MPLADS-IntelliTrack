@@ -56,12 +56,9 @@ dist-ssr/
 .DS_Store
 Thumbs.db
 
-# Data & Models (ignore raw/processed datasets & model weights, keep directory structure)
-data/raw/*
-!data/raw/.gitkeep
+# Data & Models (keep prototype & benchmark datasets, ignore transient artifacts)
 data/processed/*
 !data/processed/.gitkeep
-*.csv
 *.xlsx
 *.parquet
 *.pkl

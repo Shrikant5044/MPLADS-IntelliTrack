@@ -12,10 +12,11 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api"
 
     # Base paths
-    # Resolves to repo_root/data/raw regardless of where uvicorn is launched from
+    # Resolves to repo_root regardless of where uvicorn is launched from
     BASE_DIR: Path = Path(__file__).resolve().parent.parent
     REPO_ROOT: Path = BASE_DIR.parent
     DATA_RAW_DIR: Path = REPO_ROOT / "data" / "raw"
+    DATA_REAL_MPLADS_DIR: Path = REPO_ROOT / "data" / "real_mplads"
 
     # CORS settings for frontend integration (configurable via CORS_ORIGINS environment variable)
     CORS_ORIGINS: Union[list[str], str] = [
