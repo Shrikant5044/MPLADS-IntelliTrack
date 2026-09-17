@@ -1,5 +1,6 @@
-﻿import React from "react";
+import React from "react";
 import { NavigationTab, SystemHealth } from "../../types";
+import { useAuth } from "../../context/AuthContext";
 import {
   LayoutDashboard,
   ShieldAlert,
@@ -9,7 +10,11 @@ import {
   Search,
   RefreshCw,
   Landmark,
+  LogOut,
+  LogIn,
+  KeyRound,
 } from "lucide-react";
+
 
 interface HeaderProps {
   activeTab: NavigationTab;
@@ -18,6 +23,8 @@ interface HeaderProps {
   onOpenSearch: () => void;
   onRefresh: () => void;
   isRefreshing: boolean;
+  onOpenLoginModal?: () => void;
+  onOpenAdminModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -27,7 +34,11 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSearch,
   onRefresh,
   isRefreshing,
+  onOpenLoginModal,
+  onOpenAdminModal,
 }) => {
+  const { user, isAuthenticated, logout } = useAuth();
+
   const navItems: Array<{ id: NavigationTab; label: string; icon: any }> = [
     { id: "OVERVIEW", label: "Overview", icon: LayoutDashboard },
     { id: "RISK_ALERTS", label: "Risk & Alerts", icon: ShieldAlert },
@@ -38,6 +49,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+      {/* Government of India MoSPI Banner */}
       <div className="bg-slate-900 text-slate-200 px-4 sm:px-6 py-1.5 text-[11px] flex items-center justify-between font-medium">
         <div className="flex items-center gap-2">
           <Landmark className="w-3.5 h-3.5 text-blue-400" />
@@ -51,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
             </span>
           </div>
           <span className="text-slate-600">|</span>
-          <span className="text-slate-400">SIH 26102</span>
+          <span className="text-slate-400 font-mono">SIH 26102</span>
         </div>
       </div>
 
@@ -85,7 +97,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <button
                   key={item.id}
                   onClick={() => onTabChange(item.id)}
-                  className={`px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all ${
+                  className={`px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer ${
                     isActive
                       ? "bg-slate-900 text-white shadow-xs"
                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
@@ -101,7 +113,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={onOpenSearch}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-500 text-xs font-medium transition-colors"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-500 text-xs font-medium transition-colors cursor-pointer"
             >
               <Search className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Search works...</span>
@@ -114,13 +126,56 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={onRefresh}
               disabled={isRefreshing}
               title="Refresh intelligence cache"
-              className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-colors disabled:opacity-50"
+              className="p-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 transition-colors disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin text-blue-600" : ""}`} />
             </button>
+
+            {/* Authenticated Officer Profile Display */}
+            {isAuthenticated && user ? (
+              <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+                <div className="hidden lg:flex flex-col text-right">
+                  <span className="text-xs font-bold text-slate-900 leading-tight">
+                    {user.full_name}
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-medium">
+                    {user.role === "MOSPI_OFFICER" && "MoSPI Officer (National)"}
+                    {user.role === "DISTRICT_AUTHORITY" && `District Authority (${user.assigned_district})`}
+                    {user.role === "ADMIN" && "System Administrator"}
+                  </span>
+                </div>
+
+                {user.role === "ADMIN" && onOpenAdminModal && (
+                  <button
+                    onClick={onOpenAdminModal}
+                    title="User Management (ADMIN)"
+                    className="p-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors cursor-pointer"
+                  >
+                    <KeyRound className="w-4 h-4" />
+                  </button>
+                )}
+
+                <button
+                  onClick={logout}
+                  title="Sign Out"
+                  className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={onOpenLoginModal}
+                className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Officer Login</span>
+              </button>
+            )}
           </div>
         </div>
 
+        {/* Mobile Navigation */}
         <div className="flex md:hidden items-center gap-1 overflow-x-auto py-2 border-t border-slate-100">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -130,7 +185,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 key={item.id}
                 onClick={() => onTabChange(item.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
                   isActive
                     ? "bg-slate-900 text-white shadow-xs"
                     : "text-slate-600 hover:bg-slate-100"

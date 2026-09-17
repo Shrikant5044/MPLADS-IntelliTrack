@@ -143,6 +143,7 @@ class IntelligenceCache:
             projects_df = data["projects"]
             self.projects_records = dataframe_to_records(projects_df)
             self.project_ids_set = set(str(pid) for pid in projects_df["project_id"])
+            self.projects_by_id = {str(p["project_id"]): p for p in self.projects_records}
 
             # 2. Run Deterministic Anomaly Engine (31 rules)
             self.all_anomalies = self.anomaly_engine.run_all(

@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   AnomalyResult,
   AnomalySummary,
@@ -13,8 +13,11 @@ import {
   SystemHealth,
 } from "./types";
 import { api } from "./api/client";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Header } from "./components/layout/Header";
 import { GlobalSearchModal } from "./components/layout/GlobalSearchModal";
+import { LoginModal } from "./components/auth/LoginModal";
+import { AdminUserManagementModal } from "./components/admin/AdminUserManagementModal";
 import { OverviewView } from "./components/overview/OverviewView";
 import { RiskAlertsView } from "./components/risk/RiskAlertsView";
 import { ProjectsView } from "./components/projects/ProjectsView";
@@ -23,11 +26,15 @@ import { AnalyticsView } from "./components/analytics/AnalyticsView";
 import { ProjectDossierModal } from "./components/dossier/ProjectDossierModal";
 import { ShieldAlert, AlertTriangle, RefreshCw } from "lucide-react";
 
-export const App: React.FC = () => {
+const MainDashboard: React.FC = () => {
+  const { user } = useAuth();
+
   // Navigation & Dossier state
   const [activeTab, setActiveTab] = useState<NavigationTab>("OVERVIEW");
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState<boolean>(false);
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState<boolean>(false);
 
   // Application Data State
   const [health, setHealth] = useState<SystemHealth | null>(null);
@@ -81,7 +88,7 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [user]);
 
   // Global Keyboard Shortcut (⌘K / Ctrl+K)
   useEffect(() => {
@@ -146,7 +153,7 @@ export const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-100/60 text-slate-900 font-sans flex flex-col antialiased">
-      {/* Government Standard Header */}
+      {/* Government Standard Header with Role-aware Profile */}
       <Header
         activeTab={activeTab}
         onTabChange={setActiveTab}
@@ -154,6 +161,8 @@ export const App: React.FC = () => {
         onOpenSearch={() => setIsSearchOpen(true)}
         onRefresh={handleRefresh}
         isRefreshing={isRefreshing}
+        onOpenLoginModal={() => setIsLoginModalOpen(true)}
+        onOpenAdminModal={() => setIsAdminModalOpen(true)}
       />
 
       {/* Main Content View Container */}
@@ -208,7 +217,7 @@ export const App: React.FC = () => {
         )}
       </main>
 
-      {/* Project Dossier Modal */}
+      {/* Project Dossier Modal with Investigation Tab */}
       {selectedProjectId && (
         <ProjectDossierModal
           projectId={selectedProjectId}
@@ -229,6 +238,18 @@ export const App: React.FC = () => {
         onSelectProject={setSelectedProjectId}
       />
 
+      {/* Authentication Login Modal */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+      />
+
+      {/* Admin User Management Modal (ADMIN ONLY) */}
+      <AdminUserManagementModal
+        isOpen={isAdminModalOpen}
+        onClose={() => setIsAdminModalOpen(false)}
+      />
+
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-6 text-xs text-slate-500 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -245,5 +266,13 @@ export const App: React.FC = () => {
         </div>
       </footer>
     </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <MainDashboard />
+    </AuthProvider>
   );
 };

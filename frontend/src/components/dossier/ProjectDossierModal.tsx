@@ -23,6 +23,7 @@ import {
   Scale,
 } from "lucide-react";
 import { RealComparableProjectsPanel } from "./RealComparableProjectsPanel";
+import { InvestigationPanel } from "./InvestigationPanel";
 
 interface ProjectDossierModalProps {
   projectId: string | null;
@@ -41,7 +42,8 @@ export const ProjectDossierModal: React.FC<ProjectDossierModalProps> = ({
   allAnomalies,
   allMLPredictions,
 }) => {
-  const [activeTab, setActiveTab] = useState<"DOSSIER" | "COMPARABLE">("DOSSIER");
+  const [activeTab, setActiveTab] = useState<"DOSSIER" | "COMPARABLE" | "INVESTIGATION">("DOSSIER");
+
   const [benchmark, setBenchmark] = useState<ProjectBenchmarkResult | null>(null);
   const [forecast, setForecast] = useState<ProjectForecastResult | null>(null);
 
@@ -160,17 +162,33 @@ export const ProjectDossierModal: React.FC<ProjectDossierModalProps> = ({
                 14.7k
               </span>
             </button>
+            <button
+              onClick={() => setActiveTab("INVESTIGATION")}
+              className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-all flex items-center gap-2 ${
+                activeTab === "INVESTIGATION"
+                  ? "border-blue-600 text-blue-700 bg-blue-50/40"
+                  : "border-transparent text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              <FileCheck className="w-3.5 h-3.5 text-blue-600" />
+              Investigation & Audit Trail
+            </button>
           </div>
         </div>
 
         {/* Scrollable Content Body */}
-        <div className="p-6 space-y-6 overflow-y-auto">
+        <div className="overflow-y-auto">
           {activeTab === "COMPARABLE" ? (
-            <RealComparableProjectsPanel project={project} />
+            <div className="p-6 space-y-6">
+              <RealComparableProjectsPanel project={project} />
+            </div>
+          ) : activeTab === "INVESTIGATION" ? (
+            <InvestigationPanel project={project} riskProfile={riskProfile} />
           ) : (
-            <>
+            <div className="p-6 space-y-6">
               {/* SECTION 1: PROJECT SNAPSHOT */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sanctioned</span>
               <div className="text-base font-bold text-slate-900 mt-0.5 font-mono">
@@ -503,9 +521,10 @@ export const ProjectDossierModal: React.FC<ProjectDossierModalProps> = ({
               </div>
             </div>
           </div>
-            </>
-          )}
         </div>
+      )}
+    </div>
+
 
         {/* Modal Footer */}
         <div className="bg-slate-100/80 px-6 py-3 border-t border-slate-200 flex items-center justify-between text-xs text-slate-500 sticky bottom-0">

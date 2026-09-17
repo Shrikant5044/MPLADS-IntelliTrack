@@ -1,4 +1,4 @@
-﻿import os
+import os
 import sys
 import unittest
 
@@ -8,6 +8,8 @@ _root = os.path.abspath(os.path.join(_backend, ".."))
 for p in [_root, _backend]:
     if p not in sys.path:
         sys.path.insert(0, p)
+
+os.environ.setdefault("JWT_SECRET_KEY", "sih-test-jwt-secret-key-32-chars-minimum-demo-2026")
 
 import numpy as np
 from fastapi.testclient import TestClient

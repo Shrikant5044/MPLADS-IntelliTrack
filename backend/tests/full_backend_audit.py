@@ -15,6 +15,8 @@ for p in [_root, _backend]:
     if p not in sys.path:
         sys.path.insert(0, p)
 
+os.environ.setdefault("JWT_SECRET_KEY", "sih-test-jwt-secret-key-32-chars-minimum-demo-2026")
+
 from app.cache import get_cache
 from app.data_loader import load_all_datasets
 from app.anomaly_engine import AnomalyEngine, AnomalyTypeEnum, SeverityEnum

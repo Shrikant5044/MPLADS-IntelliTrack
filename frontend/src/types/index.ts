@@ -448,3 +448,137 @@ export interface RealMPLADSStatsResponse {
   data_source_integrity_note: string;
 }
 
+// -------------------------------------------------------------
+// AUTHENTICATION & RBAC TYPES
+// -------------------------------------------------------------
+export type UserRole = "MOSPI_OFFICER" | "DISTRICT_AUTHORITY" | "ADMIN";
+
+export interface User {
+  user_id: string;
+  username: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  assigned_district?: string | null;
+  assigned_state?: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  user: User;
+}
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+export interface UserCreate {
+  username: string;
+  email: string;
+  full_name: string;
+  role: UserRole;
+  assigned_district?: string | null;
+  assigned_state?: string | null;
+  password: string;
+  is_active?: boolean;
+}
+
+export interface UserUpdate {
+  full_name?: string;
+  email?: string;
+  role?: UserRole;
+  assigned_district?: string | null;
+  assigned_state?: string | null;
+  is_active?: boolean;
+  password?: string;
+}
+
+// -------------------------------------------------------------
+// INVESTIGATION / CASE MANAGEMENT TYPES
+// -------------------------------------------------------------
+export type InvestigationStatus =
+  | "NOT_STARTED"
+  | "ASSIGNED"
+  | "IN_PROGRESS"
+  | "EVIDENCE_COLLECTION"
+  | "UNDER_REVIEW"
+  | "ACTION_REQUIRED"
+  | "ESCALATED"
+  | "RESOLVED"
+  | "CLOSED";
+
+export type CaseInvestigationType =
+  | "FINANCIAL_VERIFICATION"
+  | "PHYSICAL_VERIFICATION"
+  | "TECHNICAL_VERIFICATION"
+  | "DOCUMENT_VERIFICATION"
+  | "IMPLEMENTATION_REVIEW"
+  | "GENERAL_REVIEW";
+
+export type AssignedRole =
+  | "District Authority"
+  | "Technical / Engineering Officer"
+  | "Implementing Agency Officer"
+  | "State Nodal Officer"
+  | "Third-Party Monitoring Agency";
+
+export interface InvestigationAuditEntry {
+  entry_id: string;
+  timestamp: string;
+  user_name: string;
+  user_role: string;
+  action: string;
+  previous_status?: string | null;
+  new_status?: string | null;
+  comment: string;
+}
+
+export interface InvestigationFinding {
+  finding_id: string;
+  timestamp: string;
+  author_name: string;
+  author_role: string;
+  finding_text: string;
+  evidence_notes?: string | null;
+}
+
+export interface InvestigationRecord {
+  investigation_id: string;
+  project_id: string;
+  work_name: string;
+  district: string;
+  state: string;
+  sanctioned_amount_lakh: number;
+  risk_score: number;
+  risk_level: string;
+  status: InvestigationStatus;
+  investigation_type: CaseInvestigationType;
+  progress_percentage: number;
+  created_by: string;
+  assigned_to?: string | null;
+  assigned_role?: string | null;
+  reason: string;
+  findings: InvestigationFinding[];
+  audit_trail: InvestigationAuditEntry[];
+  final_recommendation?: string | null;
+  escalation_status?: string | null;
+  created_at: string;
+  updated_at: string;
+  due_date?: string | null;
+  is_demo: boolean;
+}
+
+export interface CreateInvestigationRequest {
+  project_id: string;
+  investigation_type: CaseInvestigationType;
+  reason: string;
+  assigned_to?: string;
+  assigned_role?: AssignedRole;
+  due_date?: string;
+}
+
+
