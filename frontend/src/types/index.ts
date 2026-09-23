@@ -6,7 +6,8 @@ export type NavigationTab =
   | "RISK_ALERTS"
   | "PROJECTS"
   | "GEO"
-  | "ANALYTICS";
+  | "ANALYTICS"
+  | "ABOUT";
 
 export interface Project {
   project_id: string;

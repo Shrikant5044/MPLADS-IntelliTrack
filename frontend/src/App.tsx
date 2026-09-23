@@ -23,6 +23,7 @@ import { RiskAlertsView } from "./components/risk/RiskAlertsView";
 import { ProjectsView } from "./components/projects/ProjectsView";
 import { GeoView } from "./components/geo/GeoView";
 import { AnalyticsView } from "./components/analytics/AnalyticsView";
+import { AboutView } from "./components/about/AboutView";
 import { ProjectDossierModal } from "./components/dossier/ProjectDossierModal";
 import { ShieldAlert, AlertTriangle, RefreshCw } from "lucide-react";
 
@@ -238,6 +239,8 @@ const MainDashboard: React.FC = () => {
             onSelectProject={setSelectedProjectId}
           />
         )}
+
+        {activeTab === "ABOUT" && <AboutView />}
       </main>
 
       {/* Project Dossier Modal with Investigation Tab */}

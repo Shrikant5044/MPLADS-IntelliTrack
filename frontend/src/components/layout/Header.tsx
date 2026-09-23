@@ -13,6 +13,7 @@ import {
   LogOut,
   LogIn,
   KeyRound,
+  Info,
 } from "lucide-react";
 
 
@@ -45,6 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: "PROJECTS", label: "Projects", icon: FolderKanban },
     { id: "GEO", label: "Geo Intelligence", icon: MapPin },
     { id: "ANALYTICS", label: "Analytics", icon: BarChart3 },
+    { id: "ABOUT", label: "About", icon: Info },
   ];
 
   return (
