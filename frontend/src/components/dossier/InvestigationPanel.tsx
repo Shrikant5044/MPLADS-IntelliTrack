@@ -21,11 +21,13 @@ import {
 interface InvestigationPanelProps {
   project: Project;
   riskProfile?: ProjectRiskProfile;
+  initialPrefillNote?: string;
 }
 
 export const InvestigationPanel: React.FC<InvestigationPanelProps> = ({
   project,
   riskProfile,
+  initialPrefillNote,
 }) => {
   const { user } = useAuth();
   const [investigation, setInvestigation] = useState<InvestigationRecord | null>(null);
@@ -53,6 +55,15 @@ export const InvestigationPanel: React.FC<InvestigationPanelProps> = ({
   const [progressVal, setProgressVal] = useState<number>(60);
   const [findingText, setFindingText] = useState<string>("");
   const [findingNotes, setFindingNotes] = useState<string>("");
+
+  useEffect(() => {
+    if (initialPrefillNote) {
+      setFindingText(initialPrefillNote);
+      setCreateReason((prev) =>
+        prev.includes(initialPrefillNote) ? prev : `${prev}\n\nProposed Verification Plan:\n${initialPrefillNote}`
+      );
+    }
+  }, [initialPrefillNote]);
   const [escalateReason, setEscalateReason] = useState<string>("");
   const [recommendationText, setRecommendationText] = useState<string>("");
   const [closeAfterResolve, setCloseAfterResolve] = useState<boolean>(false);
@@ -262,6 +273,28 @@ export const InvestigationPanel: React.FC<InvestigationPanelProps> = ({
 
   return (
     <div className="p-6 space-y-6">
+      {initialPrefillNote && (
+        <div className="rounded-lg bg-blue-50 border border-blue-200 p-3.5 text-xs text-blue-900 flex items-start justify-between gap-3 shadow-2xs">
+          <div className="flex items-start gap-2.5">
+            <FileText className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-bold text-blue-950">Verification Plan Transferred to Investigation Docket</p>
+              <p className="text-[11px] text-blue-800 mt-0.5">
+                The recommended verification steps have been prefilled into the draft case inputs. Click to review and record.
+              </p>
+            </div>
+          </div>
+          {canManage && (
+            <button
+              onClick={() => (investigation ? setShowFindingModal(true) : setShowCreateModal(true))}
+              className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shrink-0 cursor-pointer"
+            >
+              {investigation ? "Review Field Finding Draft" : "Review Case Creation Draft"}
+            </button>
+          )}
+        </div>
+      )}
+
       {actionError && (
         <div className="rounded-lg bg-rose-50 border border-rose-200 p-3 text-xs text-rose-800 flex items-start gap-2">
           <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />

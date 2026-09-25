@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { RealComparableProjectsPanel } from "./RealComparableProjectsPanel";
 import { InvestigationPanel } from "./InvestigationPanel";
+import { ConsistencyVerificationCard } from "./ConsistencyVerificationCard";
 
 interface ProjectDossierModalProps {
   projectId: string | null;
@@ -46,6 +47,7 @@ export const ProjectDossierModal: React.FC<ProjectDossierModalProps> = ({
 
   const [benchmark, setBenchmark] = useState<ProjectBenchmarkResult | null>(null);
   const [forecast, setForecast] = useState<ProjectForecastResult | null>(null);
+  const [prefillInvestigationNote, setPrefillInvestigationNote] = useState<string | null>(null);
 
   const project = allProjects.find((p) => p.project_id === projectId);
   const riskProfile = allRiskProfiles.find((p) => p.project_id === projectId);
@@ -183,7 +185,11 @@ export const ProjectDossierModal: React.FC<ProjectDossierModalProps> = ({
               <RealComparableProjectsPanel project={project} />
             </div>
           ) : activeTab === "INVESTIGATION" ? (
-            <InvestigationPanel project={project} riskProfile={riskProfile} />
+            <InvestigationPanel
+              project={project}
+              riskProfile={riskProfile}
+              initialPrefillNote={prefillInvestigationNote || undefined}
+            />
           ) : (
             <div className="p-6 space-y-6">
               {/* SECTION 1: PROJECT SNAPSHOT */}
@@ -304,6 +310,17 @@ export const ProjectDossierModal: React.FC<ProjectDossierModalProps> = ({
               </div>
             )}
           </div>
+
+          {/* CONSISTENCY & VERIFICATION DIAGNOSTIC CARD */}
+          <ConsistencyVerificationCard
+            project={project}
+            riskProfile={riskProfile}
+            anomalies={projectAnomalies}
+            onSendToInvestigation={(planText) => {
+              setPrefillInvestigationNote(planText);
+              setActiveTab("INVESTIGATION");
+            }}
+          />
 
           {/* SECTION 3: FINANCIAL HEALTH & PEER BENCHMARKING */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
