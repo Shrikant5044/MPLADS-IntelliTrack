@@ -378,7 +378,7 @@ export const ConsistencyVerificationCard: React.FC<ConsistencyVerificationCardPr
                 </div>
 
                 <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
-                  <span className="text-[10px] text-slate-400 block font-bold uppercase">Verified Peers</span>
+                  <span className="text-[10px] text-slate-400 block font-bold uppercase">Comparable Peers</span>
                   <span className="font-mono text-xs font-bold text-blue-700 block mt-0.5">
                     {realBenchmark!.comparable_project_count || 0} Works
                   </span>
