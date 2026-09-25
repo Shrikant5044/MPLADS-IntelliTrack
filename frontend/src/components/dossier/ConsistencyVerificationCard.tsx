@@ -31,14 +31,25 @@ interface VerificationCheckItem {
 interface ConsistencyVerificationCardProps {
   project: Project;
   riskProfile?: ProjectRiskProfile;
-  anomalies: AnomalyResult[];
+  anomalies?: AnomalyResult[];
   onSendToInvestigation: (verificationPlanText: string) => void;
 }
+
+// Safe formatting helpers to prevent runtime TypeErrors
+const formatLakh = (val?: number | null): string => {
+  if (val === undefined || val === null || typeof val !== "number" || !isFinite(val)) return "—";
+  return val.toFixed(2);
+};
+
+const formatPct = (val?: number | null): string => {
+  if (val === undefined || val === null || typeof val !== "number" || !isFinite(val)) return "—";
+  return val.toFixed(1);
+};
 
 export const ConsistencyVerificationCard: React.FC<ConsistencyVerificationCardProps> = ({
   project,
   riskProfile,
-  anomalies,
+  anomalies = [],
   onSendToInvestigation,
 }) => {
   const { user } = useAuth();
@@ -46,11 +57,13 @@ export const ConsistencyVerificationCard: React.FC<ConsistencyVerificationCardPr
   const [isLoadingBenchmark, setIsLoadingBenchmark] = useState<boolean>(true);
   const [benchmarkError, setBenchmarkError] = useState<string | null>(null);
 
+  const safeAnomalies = Array.isArray(anomalies) ? anomalies : [];
+
   // Auth RBAC check
   const isMoSPI = user?.role === "MOSPI_OFFICER";
   const isDistrictAuthority = user?.role === "DISTRICT_AUTHORITY";
   const isDistrictMatch = isDistrictAuthority
-    ? (user?.assigned_district || "").trim().toLowerCase() === project.district.trim().toLowerCase()
+    ? (user?.assigned_district || "").trim().toLowerCase() === (project.district || "").trim().toLowerCase()
     : false;
   const canManage = isMoSPI || isDistrictMatch;
 
@@ -99,7 +112,7 @@ export const ConsistencyVerificationCard: React.FC<ConsistencyVerificationCardPr
     const checks: VerificationCheckItem[] = [];
 
     // 1. Compliance Document Anomalies Check
-    const missingDocs = anomalies.filter((a) => a.anomaly_type.startsWith("MISSING_"));
+    const missingDocs = safeAnomalies.filter((a) => a.anomaly_type && a.anomaly_type.startsWith("MISSING_"));
     if (missingDocs.length > 0) {
       const missingNames = missingDocs
         .map((d) => d.anomaly_type.replace("MISSING_", "").replace(/_/g, " "))
@@ -113,28 +126,28 @@ export const ConsistencyVerificationCard: React.FC<ConsistencyVerificationCardPr
     }
 
     // 2. Real MPLADS Cost Benchmark / Financial Anomaly Check
-    const costAnomalies = anomalies.filter(
+    const costAnomalies = safeAnomalies.filter(
       (a) =>
         a.anomaly_type === "COST_OVERRUN" ||
         a.anomaly_type === "EXPENDITURE_EXCEEDS_SANCTION" ||
         a.anomaly_type === "ABNORMALLY_HIGH_UTILIZATION"
     );
 
-    if (
+    const isDiffValid =
       realBenchmark &&
       realBenchmark.status === "SUCCESS" &&
-      realBenchmark.peer_median_lakh !== undefined &&
-      Math.abs(realBenchmark.percentage_difference_from_peer_median) > 15
-    ) {
-      const diffSign = realBenchmark.percentage_difference_from_peer_median > 0 ? "+" : "";
+      typeof realBenchmark.peer_median_lakh === "number" &&
+      typeof realBenchmark.percentage_difference_from_peer_median === "number";
+
+    if (isDiffValid && Math.abs(realBenchmark!.percentage_difference_from_peer_median!) > 15) {
+      const diffVal = realBenchmark!.percentage_difference_from_peer_median!;
+      const diffSign = diffVal > 0 ? "+" : "";
       checks.push({
         id: "check-benchmark",
-        action: `Audit Measurement Book (MB) line items against real MPLADS peer median baseline (₹${realBenchmark.peer_median_lakh.toFixed(
-          2
-        )} Lakhs across ${realBenchmark.comparable_project_count} verified peer works).`,
-        promptedBy: `Real MPLADS Peer Variance: ${diffSign}${realBenchmark.percentage_difference_from_peer_median.toFixed(
-          1
-        )}% from peer median`,
+        action: `Audit Measurement Book (MB) line items against real MPLADS peer median baseline (₹${formatLakh(
+          realBenchmark!.peer_median_lakh
+        )} Lakhs across ${realBenchmark!.comparable_project_count || 0} verified peer works).`,
+        promptedBy: `Real MPLADS Peer Variance: ${diffSign}${formatPct(diffVal)}% from peer median`,
         category: "FINANCIAL",
       });
     } else if (costAnomalies.length > 0) {
@@ -147,7 +160,7 @@ export const ConsistencyVerificationCard: React.FC<ConsistencyVerificationCardPr
     }
 
     // 3. Physical Progress vs Financial Drawdown Mismatch Check
-    const progressAnomalies = anomalies.filter(
+    const progressAnomalies = safeAnomalies.filter(
       (a) =>
         a.anomaly_type === "PROGRESS_FINANCIAL_MISMATCH" ||
         a.anomaly_type === "PROJECT_DELAY" ||
@@ -191,19 +204,29 @@ export const ConsistencyVerificationCard: React.FC<ConsistencyVerificationCardPr
         (c, idx) => `${idx + 1}. [${c.category}] ${c.action} (Triggered by: ${c.promptedBy})`
       ),
     ];
-    if (realBenchmark && realBenchmark.status === "SUCCESS") {
+    if (
+      realBenchmark &&
+      realBenchmark.status === "SUCCESS" &&
+      typeof realBenchmark.target_amount_lakh === "number" &&
+      typeof realBenchmark.peer_median_lakh === "number"
+    ) {
+      const diffVal = realBenchmark.percentage_difference_from_peer_median || 0;
       lines.push(
-        `Real MPLADS Peer Baseline Context: Target ₹${realBenchmark.target_amount_lakh.toFixed(
-          2
-        )}L vs Peer Median ₹${realBenchmark.peer_median_lakh.toFixed(
-          2
-        )}L (${realBenchmark.percentage_difference_from_peer_median > 0 ? "+" : ""}${realBenchmark.percentage_difference_from_peer_median.toFixed(
-          1
-        )}% variance).`
+        `Real MPLADS Peer Baseline Context: Target ₹${formatLakh(
+          realBenchmark.target_amount_lakh
+        )}L vs Peer Median ₹${formatLakh(realBenchmark.peer_median_lakh)}L (${
+          diffVal > 0 ? "+" : ""
+        }${formatPct(diffVal)}% variance).`
       );
     }
     onSendToInvestigation(lines.join("\n"));
   };
+
+  const isBenchmarkValid =
+    realBenchmark &&
+    realBenchmark.status === "SUCCESS" &&
+    typeof realBenchmark.peer_median_lakh === "number" &&
+    typeof realBenchmark.target_amount_lakh === "number";
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-5">
@@ -232,17 +255,21 @@ export const ConsistencyVerificationCard: React.FC<ConsistencyVerificationCardPr
               1. Detected Evidence & Signals
             </h4>
             <span className="text-[10px] font-mono font-semibold text-slate-500">
-              {anomalies.length} Signal{anomalies.length === 1 ? "" : "s"}
+              {safeAnomalies.length} Signal{safeAnomalies.length === 1 ? "" : "s"}
             </span>
           </div>
 
-          {anomalies.length > 0 ? (
+          {safeAnomalies.length > 0 ? (
             <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-              {anomalies.map((anom, idx) => {
-                // Find matching factor in riskProfile to obtain risk contribution if present
-                const matchingFactor = riskProfile?.risk_factors.find(
+              {safeAnomalies.map((anom, idx) => {
+                const matchingFactor = riskProfile?.risk_factors?.find(
                   (rf) => rf.signal === anom.anomaly_type
                 );
+
+                const hasEvidence =
+                  anom.evidence &&
+                  typeof anom.evidence === "object" &&
+                  Object.keys(anom.evidence).length > 0;
 
                 return (
                   <div
@@ -251,10 +278,10 @@ export const ConsistencyVerificationCard: React.FC<ConsistencyVerificationCardPr
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-bold text-slate-900 font-mono text-[11px]">
-                        {anom.anomaly_type.replace(/_/g, " ")}
+                        {(anom.anomaly_type || "ANOMALY").replace(/_/g, " ")}
                       </span>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <SeverityBadge severity={anom.severity} />
+                        {anom.severity && <SeverityBadge severity={anom.severity} />}
                         {matchingFactor?.contribution !== undefined && (
                           <span className="font-mono text-[10px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
                             +{matchingFactor.contribution} pts
@@ -264,12 +291,17 @@ export const ConsistencyVerificationCard: React.FC<ConsistencyVerificationCardPr
                     </div>
 
                     <p className="text-[11px] text-slate-600 leading-snug">
-                      {anom.explanation}
+                      {anom.explanation || "No explanation provided."}
                     </p>
 
                     <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-200/50 font-mono">
-                      <span>Confidence: {(anom.confidence * 100).toFixed(0)}%</span>
-                      {anom.evidence && Object.keys(anom.evidence).length > 0 && (
+                      <span>
+                        Confidence:{" "}
+                        {typeof anom.confidence === "number"
+                          ? `${(anom.confidence * 100).toFixed(0)}%`
+                          : "N/A"}
+                      </span>
+                      {hasEvidence && (
                         <span className="truncate max-w-[180px]">
                           Evidence: {JSON.stringify(anom.evidence).replace(/[{}"\\]/g, "")}
                         </span>
@@ -310,37 +342,37 @@ export const ConsistencyVerificationCard: React.FC<ConsistencyVerificationCardPr
                 <p className="text-[11px] mt-0.5">{benchmarkError}</p>
               </div>
             </div>
-          ) : realBenchmark && realBenchmark.status === "SUCCESS" ? (
+          ) : isBenchmarkValid ? (
             <div className="space-y-3">
               {/* Metric Chips */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                 <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
                   <span className="text-[10px] text-slate-400 block font-bold uppercase">Target Cost</span>
                   <span className="font-mono text-xs font-bold text-slate-900 block mt-0.5">
-                    ₹{realBenchmark.target_amount_lakh.toFixed(2)} L
+                    ₹{formatLakh(realBenchmark!.target_amount_lakh)} L
                   </span>
                 </div>
 
                 <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
                   <span className="text-[10px] text-slate-400 block font-bold uppercase">Peer Median</span>
                   <span className="font-mono text-xs font-bold text-slate-900 block mt-0.5">
-                    ₹{realBenchmark.peer_median_lakh.toFixed(2)} L
+                    ₹{formatLakh(realBenchmark!.peer_median_lakh)} L
                   </span>
                 </div>
 
                 <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
                   <span className="text-[10px] text-slate-400 block font-bold uppercase">Cost Variance</span>
                   <div className="flex items-center gap-1 mt-0.5">
-                    {realBenchmark.percentage_difference_from_peer_median > 0 ? (
+                    {(realBenchmark!.percentage_difference_from_peer_median || 0) > 0 ? (
                       <TrendingUp className="w-3 h-3 text-amber-600" />
-                    ) : realBenchmark.percentage_difference_from_peer_median < 0 ? (
+                    ) : (realBenchmark!.percentage_difference_from_peer_median || 0) < 0 ? (
                       <TrendingDown className="w-3 h-3 text-emerald-600" />
                     ) : (
                       <Minus className="w-3 h-3 text-slate-400" />
                     )}
                     <span className="font-mono text-xs font-bold text-slate-900">
-                      {realBenchmark.percentage_difference_from_peer_median > 0 ? "+" : ""}
-                      {realBenchmark.percentage_difference_from_peer_median.toFixed(1)}%
+                      {(realBenchmark!.percentage_difference_from_peer_median || 0) > 0 ? "+" : ""}
+                      {formatPct(realBenchmark!.percentage_difference_from_peer_median)}%
                     </span>
                   </div>
                 </div>
@@ -348,7 +380,7 @@ export const ConsistencyVerificationCard: React.FC<ConsistencyVerificationCardPr
                 <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200">
                   <span className="text-[10px] text-slate-400 block font-bold uppercase">Verified Peers</span>
                   <span className="font-mono text-xs font-bold text-blue-700 block mt-0.5">
-                    {realBenchmark.comparable_project_count} Works
+                    {realBenchmark!.comparable_project_count || 0} Works
                   </span>
                 </div>
               </div>
@@ -356,21 +388,21 @@ export const ConsistencyVerificationCard: React.FC<ConsistencyVerificationCardPr
               {/* Benchmark Summary Note */}
               <div className="p-3 rounded-lg bg-slate-50/80 border border-slate-200/80 text-[11px] text-slate-700 space-y-1">
                 <p className="font-medium text-slate-900 leading-snug">
-                  {realBenchmark.benchmark_insight}
+                  {realBenchmark!.benchmark_insight || "Peer benchmark comparison active."}
                 </p>
                 <p className="text-[10px] text-slate-500">
-                  Match confidence: {(realBenchmark.matching_confidence * 100).toFixed(0)}% • Average text similarity: {(realBenchmark.average_peer_similarity * 100).toFixed(0)}%
+                  Match confidence: {formatPct((realBenchmark!.matching_confidence || 0) * 100)}% • Average text similarity: {formatPct((realBenchmark!.average_peer_similarity || 0) * 100)}%
                 </p>
               </div>
 
               {/* Top Verified Peer Snippets */}
-              {realBenchmark.comparable_works && realBenchmark.comparable_works.length > 0 && (
+              {Array.isArray(realBenchmark!.comparable_works) && realBenchmark!.comparable_works.length > 0 && (
                 <div className="space-y-1.5">
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                     Top Comparable Real MPLADS Works
                   </span>
                   <div className="space-y-1">
-                    {realBenchmark.comparable_works.slice(0, 2).map((peer) => (
+                    {realBenchmark!.comparable_works.slice(0, 2).map((peer) => (
                       <div
                         key={peer.work_id}
                         className="p-2 rounded border border-slate-100 bg-white flex items-center justify-between text-[11px]"
@@ -382,9 +414,9 @@ export const ConsistencyVerificationCard: React.FC<ConsistencyVerificationCardPr
                           <span className="text-slate-800 font-medium">{peer.work_description}</span>
                         </div>
                         <div className="text-right font-mono shrink-0 ml-2">
-                          <span className="font-bold text-slate-900">₹{peer.amount_lakh.toFixed(2)}L</span>
+                          <span className="font-bold text-slate-900">₹{formatLakh(peer.amount_lakh)}L</span>
                           <span className="text-[9px] text-blue-600 block">
-                            {(peer.similarity_score * 100).toFixed(0)}% match
+                            {formatPct((peer.similarity_score || 0) * 100)}% match
                           </span>
                         </div>
                       </div>
