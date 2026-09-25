@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import { formatCurrencyLakh, formatProgressPct, formatFundUtilizationPct } from "../../utils/formatters";
 
 interface GeoViewProps {
   projects: Project[];
@@ -402,10 +403,10 @@ export const GeoView: React.FC<GeoViewProps> = ({
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
           <p className="text-xl font-bold text-slate-900 font-mono truncate">
-            ₹{totalExpenditureLakh.toFixed(1)}L
+            {formatCurrencyLakh(totalExpenditureLakh)}
           </p>
           <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
-            of ₹{totalSanctionedLakh.toFixed(1)}L Sanctioned
+            of {formatCurrencyLakh(totalSanctionedLakh)} Sanctioned
           </p>
         </div>
       </div>
@@ -494,19 +495,19 @@ export const GeoView: React.FC<GeoViewProps> = ({
                         <div>
                           <span className="text-slate-400">Sanctioned:</span>
                           <div className="font-bold text-slate-800 font-mono">
-                            ₹{p.sanctioned_amount_lakh}L
+                            {formatCurrencyLakh(p.sanctioned_amount_lakh)}
                           </div>
                         </div>
                         <div>
                           <span className="text-slate-400">Expenditure:</span>
                           <div className="font-bold text-slate-800 font-mono">
-                            ₹{p.expenditure_lakh}L
+                            {formatCurrencyLakh(p.expenditure_lakh)}
                           </div>
                         </div>
                         <div>
                           <span className="text-slate-400">Physical Progress:</span>
                           <div className="font-bold text-slate-800 font-mono">
-                            {p.physical_progress_pct}%
+                            {formatProgressPct(p.physical_progress_pct)}
                           </div>
                         </div>
                         <div>
@@ -646,10 +647,10 @@ export const GeoView: React.FC<GeoViewProps> = ({
                         </td>
                         <td className="py-3 px-3 text-slate-600">{p.work_category}</td>
                         <td className="py-3 px-3 font-mono text-slate-800">
-                          ₹{p.sanctioned_amount_lakh}L
+                          {formatCurrencyLakh(p.sanctioned_amount_lakh)}
                         </td>
                         <td className="py-3 px-3 font-mono text-slate-800">
-                          ₹{p.expenditure_lakh}L
+                          {formatCurrencyLakh(p.expenditure_lakh)}
                         </td>
                         <td className="py-3 px-3 text-center font-mono">
                           <span
@@ -661,7 +662,7 @@ export const GeoView: React.FC<GeoViewProps> = ({
                                 : "text-amber-700"
                             }`}
                           >
-                            {p.physical_progress_pct}%
+                            {formatProgressPct(p.physical_progress_pct)}
                           </span>
                         </td>
                         <td className="py-3 px-3 text-center">
@@ -746,11 +747,11 @@ export const GeoView: React.FC<GeoViewProps> = ({
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-3 font-mono text-slate-700">₹{d.total_sanctioned_lakh}L</td>
-                      <td className="py-3 px-3 font-mono text-slate-700">₹{d.total_expenditure_lakh}L</td>
+                      <td className="py-3 px-3 font-mono text-slate-700">{formatCurrencyLakh(d.total_sanctioned_lakh)}</td>
+                      <td className="py-3 px-3 font-mono text-slate-700">{formatCurrencyLakh(d.total_expenditure_lakh)}</td>
                       <td className="py-3 px-3">
                         <div className="font-bold text-slate-800 font-mono">
-                          {d.fund_utilization_pct}%
+                          {formatFundUtilizationPct(d.total_expenditure_lakh, d.total_sanctioned_lakh, d.fund_utilization_pct)}
                         </div>
                       </td>
                       <td className="py-3 px-4 text-right">

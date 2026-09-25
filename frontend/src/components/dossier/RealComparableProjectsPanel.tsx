@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Project, RealWorkBenchmarkResult } from "../../types";
 import { api } from "../../api/client";
+import { formatCurrencyLakh } from "../../utils/formatters";
 import {
   Scale,
   Search,
@@ -187,7 +188,7 @@ export const RealComparableProjectsPanel: React.FC<RealComparableProjectsPanelPr
           <div className="text-right shrink-0">
             <span className="text-[10px] font-bold text-slate-400 block uppercase">Target Cost</span>
             <span className="text-base font-bold font-mono text-slate-900">
-              ₹{benchmarkResult?.target_amount_lakh !== undefined ? benchmarkResult.target_amount_lakh.toFixed(2) : project.sanctioned_amount_lakh.toFixed(2)} Lakhs
+              {formatCurrencyLakh(benchmarkResult?.target_amount_lakh ?? project.sanctioned_amount_lakh, "Lakhs")}
             </span>
           </div>
         </div>
@@ -244,7 +245,7 @@ export const RealComparableProjectsPanel: React.FC<RealComparableProjectsPanelPr
                 Target Amount
               </span>
               <span className="font-mono text-sm font-bold text-slate-900 mt-0.5 block">
-                ₹{benchmarkResult.target_amount_lakh.toFixed(2)} L
+                {formatCurrencyLakh(benchmarkResult.target_amount_lakh)}
               </span>
             </div>
 
@@ -253,7 +254,7 @@ export const RealComparableProjectsPanel: React.FC<RealComparableProjectsPanelPr
                 Peer Median
               </span>
               <span className="font-mono text-sm font-bold text-slate-900 mt-0.5 block">
-                ₹{benchmarkResult.peer_median_lakh.toFixed(2)} L
+                {formatCurrencyLakh(benchmarkResult.peer_median_lakh)}
               </span>
               <span className="text-[10px] text-slate-400">({benchmarkResult.comparable_project_count} verified peers)</span>
             </div>
@@ -314,7 +315,7 @@ export const RealComparableProjectsPanel: React.FC<RealComparableProjectsPanelPr
               {getStandardizedConclusion(benchmarkResult.percentage_difference_from_peer_median)}
             </p>
             <p className="text-[11px] text-slate-500 leading-normal">
-              Target amount: ₹{benchmarkResult.target_amount_lakh.toFixed(1)} L vs Peer median: ₹{benchmarkResult.peer_median_lakh.toFixed(1)} L ({benchmarkResult.percentage_difference_from_peer_median > 0 ? "+" : ""}{benchmarkResult.percentage_difference_from_peer_median.toFixed(1)}% variance across {benchmarkResult.comparable_project_count} comparable works).
+              Target amount: {formatCurrencyLakh(benchmarkResult.target_amount_lakh)} vs Peer median: {formatCurrencyLakh(benchmarkResult.peer_median_lakh)} ({benchmarkResult.percentage_difference_from_peer_median > 0 ? "+" : ""}{benchmarkResult.percentage_difference_from_peer_median.toFixed(1)}% variance across {benchmarkResult.comparable_project_count} comparable works).
             </p>
           </div>
 
@@ -352,7 +353,7 @@ export const RealComparableProjectsPanel: React.FC<RealComparableProjectsPanelPr
 
                     <div className="text-right shrink-0">
                       <span className="font-mono text-sm font-bold text-slate-900 block">
-                        ₹{peer.amount_lakh.toFixed(2)} Lakhs
+                        {formatCurrencyLakh(peer.amount_lakh, "Lakhs")}
                       </span>
                       <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full inline-block mt-0.5">
                         Similarity: {(peer.similarity_score * 100).toFixed(0)}%

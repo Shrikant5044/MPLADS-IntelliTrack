@@ -1,8 +1,9 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, Polyline } from 'react-leaflet';
 import { Project, ProjectRiskProfile, AnomalyResult } from '../../types';
 import { RiskBadge } from '../common/RiskBadge';
 import { MapPin, Copy } from 'lucide-react';
+import { formatCurrencyLakh, formatProgressPct } from '../../utils/formatters';
 
 interface Props {
   projects: Project[];
@@ -207,8 +208,8 @@ export const GeoIntelligence: React.FC<Props> = ({
                       </div>
                       <div className="text-[#8b949e] text-[11px] space-y-0.5">
                         <div>District: {p.district}</div>
-                        <div>Progress: {p.physical_progress_pct.toFixed(1)}%</div>
-                        <div>Sanction: ₹{p.sanctioned_amount_lakh.toFixed(2)}L</div>
+                        <div>Progress: {formatProgressPct(p.physical_progress_pct)}</div>
+                        <div>Sanction: {formatCurrencyLakh(p.sanctioned_amount_lakh)}</div>
                         {isDuplicate && (
                           <div className="text-red-400 font-bold mt-1">
                             ⚠ POTENTIAL DUPLICATE WORK

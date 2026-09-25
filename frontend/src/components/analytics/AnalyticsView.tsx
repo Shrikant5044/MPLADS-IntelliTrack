@@ -11,6 +11,7 @@ import {
 } from "../../types";
 import { api } from "../../api/client";
 import { RiskBadge } from "../common/RiskBadge";
+import { formatCurrencyLakh, formatProgressPct, formatFundUtilizationPct } from "../../utils/formatters";
 import {
   TrendingUp,
   Clock,
@@ -302,7 +303,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">High Risk Exposure</span>
-              <div className="text-2xl font-bold text-slate-900 mt-1 font-mono">₹{auditSummary?.total_financial_exposure_lakh || 0}L</div>
+              <div className="text-2xl font-bold text-slate-900 mt-1 font-mono">{formatCurrencyLakh(auditSummary?.total_financial_exposure_lakh)}</div>
               <div className="text-[11px] text-slate-400 mt-0.5">Under active review</div>
             </div>
 
@@ -460,7 +461,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                     <RiskBadge level={item.risk_level} score={item.risk_score} size="md" />
                     {getUrgencyBadge(item.urgency)}
                     <span className="px-2 py-1 text-xs font-bold rounded bg-slate-100 text-slate-700 font-mono">
-                      ₹{item.financial_exposure_lakh}L Exp
+                      {formatCurrencyLakh(item.financial_exposure_lakh)} Exp
                     </span>
                   </div>
                 </div>
@@ -588,7 +589,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                         <div className="font-mono text-[11px] text-slate-400">{f.project_id}</div>
                       </td>
                       <td className="py-3 px-3 font-bold text-slate-800 font-mono">
-                        {f.current_progress_pct.toFixed(1)}%
+                        {formatProgressPct(f.current_progress_pct)}
                       </td>
                       <td className="py-3 px-3 font-mono text-slate-600">
                         {f.velocity_pct_per_day ? `${(f.velocity_pct_per_day * 100).toFixed(2)}%/d` : "-"}
@@ -649,7 +650,7 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
 
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Sanctioned</span>
-              <div className="text-2xl font-bold text-slate-900 mt-1 font-mono">₹{districtSummary?.total_sanctioned_all_districts_lakh || 0}L</div>
+              <div className="text-2xl font-bold text-slate-900 mt-1 font-mono">{formatCurrencyLakh(districtSummary?.total_sanctioned_all_districts_lakh)}</div>
               <div className="text-[11px] text-slate-400 mt-0.5">Portfolio budget</div>
             </div>
           </div>
@@ -690,9 +691,9 @@ export const AnalyticsView: React.FC<AnalyticsViewProps> = ({
                       <td className="py-3 px-3 font-mono font-bold text-slate-800">
                         {d.average_risk_score}
                       </td>
-                      <td className="py-3 px-3 font-mono text-slate-700">₹{d.total_sanctioned_lakh}L</td>
-                      <td className="py-3 px-3 font-mono text-slate-700">₹{d.total_expenditure_lakh}L</td>
-                      <td className="py-3 px-3 font-mono font-semibold text-slate-800">{d.fund_utilization_pct}%</td>
+                      <td className="py-3 px-3 font-mono text-slate-700">{formatCurrencyLakh(d.total_sanctioned_lakh)}</td>
+                      <td className="py-3 px-3 font-mono text-slate-700">{formatCurrencyLakh(d.total_expenditure_lakh)}</td>
+                      <td className="py-3 px-3 font-mono font-semibold text-slate-800">{formatFundUtilizationPct(d.total_expenditure_lakh, d.total_sanctioned_lakh, d.fund_utilization_pct)}</td>
                       <td className="py-3 px-3 font-mono text-slate-600">{d.max_vendor_concentration_share_pct}% share</td>
                       <td className="py-3 px-4 text-slate-600 text-[11px]">{d.top_implementing_agency}</td>
                     </tr>

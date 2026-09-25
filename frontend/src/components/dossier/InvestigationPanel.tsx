@@ -18,6 +18,8 @@ import {
   Lock,
 } from "lucide-react";
 
+import { formatCurrencyLakh } from "../../utils/formatters";
+
 interface InvestigationPanelProps {
   project: Project;
   riskProfile?: ProjectRiskProfile;
@@ -386,9 +388,9 @@ export const InvestigationPanel: React.FC<InvestigationPanelProps> = ({
               <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">
                 <span className="text-slate-400 text-[11px] block">Sanctioned Amount</span>
                 <span className="font-bold text-slate-800 text-sm font-mono block mt-0.5">
-                  ₹{project.sanctioned_amount_lakh} Lakh
+                  {formatCurrencyLakh(project.sanctioned_amount_lakh, "Lakhs")}
                 </span>
-                <span className="text-[10px] text-slate-500">Expenditure: ₹{project.expenditure_lakh}L</span>
+                <span className="text-[10px] text-slate-500">Expenditure: {formatCurrencyLakh(project.expenditure_lakh)}</span>
               </div>
 
               <div className="bg-slate-50 p-3 rounded-lg border border-slate-100">

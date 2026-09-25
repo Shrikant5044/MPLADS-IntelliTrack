@@ -8,6 +8,11 @@ import { RiskBadge } from "../common/RiskBadge";
 import { SeverityBadge } from "../common/SeverityBadge";
 import { EmptyState } from "../common/EmptyState";
 import {
+  formatCurrencyLakh,
+  formatProgressPct,
+  formatPlannedTargetPct,
+} from "../../utils/formatters";
+import {
   Search,
   ChevronDown,
   ChevronUp,
@@ -346,11 +351,11 @@ export const RiskAlertsView: React.FC<RiskAlertsViewProps> = ({
                       <div className="mt-3 grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-200/60">
                         <div>
                           <span className="text-slate-400 text-[11px]">Sanction:</span>
-                          <div className="font-bold text-slate-800">₹{p1.sanctioned_amount_lakh}L</div>
+                          <div className="font-bold text-slate-800">{formatCurrencyLakh(p1.sanctioned_amount_lakh)}</div>
                         </div>
                         <div>
                           <span className="text-slate-400 text-[11px]">Progress:</span>
-                          <div className="font-bold text-slate-800">{p1.physical_progress_pct}%</div>
+                          <div className="font-bold text-slate-800">{formatProgressPct(p1.physical_progress_pct)}</div>
                         </div>
                       </div>
                     </div>
@@ -375,11 +380,11 @@ export const RiskAlertsView: React.FC<RiskAlertsViewProps> = ({
                       <div className="mt-3 grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-200/60">
                         <div>
                           <span className="text-slate-400 text-[11px]">Sanction:</span>
-                          <div className="font-bold text-slate-800">₹{p2.sanctioned_amount_lakh}L</div>
+                          <div className="font-bold text-slate-800">{formatCurrencyLakh(p2.sanctioned_amount_lakh)}</div>
                         </div>
                         <div>
                           <span className="text-slate-400 text-[11px]">Progress:</span>
-                          <div className="font-bold text-slate-800">{p2.physical_progress_pct}%</div>
+                          <div className="font-bold text-slate-800">{formatProgressPct(p2.physical_progress_pct)}</div>
                         </div>
                       </div>
                     </div>
@@ -680,19 +685,19 @@ export const RiskAlertsView: React.FC<RiskAlertsViewProps> = ({
                             <div className="grid grid-cols-2 gap-2 text-xs">
                               <div>
                                 <span className="text-slate-400 text-[11px]">Physical Progress:</span>
-                                <div className="font-bold text-slate-800">{proj?.physical_progress_pct}%</div>
+                                <div className="font-bold text-slate-800">{formatProgressPct(proj?.physical_progress_pct)}</div>
                               </div>
                               <div>
                                 <span className="text-slate-400 text-[11px]">Planned Target:</span>
-                                <div className="font-bold text-slate-800">{proj?.planned_progress_pct}%</div>
+                                <div className="font-bold text-slate-800">{formatPlannedTargetPct(proj?.planned_progress_pct)}</div>
                               </div>
                               <div>
                                 <span className="text-slate-400 text-[11px]">Sanctioned Budget:</span>
-                                <div className="font-bold text-slate-800">₹{proj?.sanctioned_amount_lakh}L</div>
+                                <div className="font-bold text-slate-800">{formatCurrencyLakh(proj?.sanctioned_amount_lakh)}</div>
                               </div>
                               <div>
                                 <span className="text-slate-400 text-[11px]">Cumulative Paid:</span>
-                                <div className="font-bold text-slate-800">₹{proj?.expenditure_lakh}L</div>
+                                <div className="font-bold text-slate-800">{formatCurrencyLakh(proj?.expenditure_lakh)}</div>
                               </div>
                             </div>
                           </div>

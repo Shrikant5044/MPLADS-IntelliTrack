@@ -1,9 +1,11 @@
-﻿import React, { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { Project, ProjectRiskProfile } from "../../types";
 import { RiskBadge } from "../common/RiskBadge";
 import { StatusBadge } from "../common/StatusBadge";
 import { EmptyState } from "../common/EmptyState";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+
+import { formatCurrencyLakh, formatProgressPct } from "../../utils/formatters";
 
 interface ProjectsViewProps {
   projects: Project[];
@@ -239,13 +241,13 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                             />
                           </div>
                           <span className="font-bold text-slate-800 font-mono">
-                            {p.physical_progress_pct}%
+                            {formatProgressPct(p.physical_progress_pct)}
                           </span>
                         </div>
                       </td>
                       <td className="py-3 px-3 text-slate-700 font-mono">
-                        <div>₹{p.sanctioned_amount_lakh}L</div>
-                        <div className="text-[10px] text-slate-400">Paid: ₹{p.expenditure_lakh}L</div>
+                        <div>{formatCurrencyLakh(p.sanctioned_amount_lakh)}</div>
+                        <div className="text-[10px] text-slate-400">Paid: {formatCurrencyLakh(p.expenditure_lakh)}</div>
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap">
                         {rp ? (

@@ -9,6 +9,12 @@ import { api } from "../../api/client";
 import { SeverityBadge } from "../common/SeverityBadge";
 import { useAuth } from "../../context/AuthContext";
 import {
+  formatCurrencyLakh,
+  formatLakhVal,
+  formatProgressPct,
+  formatFundUtilizationPct,
+} from "../../utils/formatters";
+import {
   CheckSquare,
   ShieldAlert,
   Scale,
@@ -35,16 +41,12 @@ interface ConsistencyVerificationCardProps {
   onSendToInvestigation: (verificationPlanText: string) => void;
 }
 
-// Safe formatting helpers to prevent runtime TypeErrors
-const formatLakh = (val?: number | null): string => {
-  if (val === undefined || val === null || typeof val !== "number" || !isFinite(val)) return "—";
-  return val.toFixed(2);
-};
-
-const formatPct = (val?: number | null): string => {
-  if (val === undefined || val === null || typeof val !== "number" || !isFinite(val)) return "—";
-  return val.toFixed(1);
-};
+// Safe formatting helpers using central utilities
+const formatLakh = (val?: number | null): string => formatLakhVal(val);
+const formatPct = (val?: number | null): string =>
+  val === undefined || val === null || typeof val !== "number" || !isFinite(val)
+    ? "—"
+    : val.toFixed(1);
 
 export const ConsistencyVerificationCard: React.FC<ConsistencyVerificationCardProps> = ({
   project,
@@ -153,7 +155,7 @@ export const ConsistencyVerificationCard: React.FC<ConsistencyVerificationCardPr
     } else if (costAnomalies.length > 0) {
       checks.push({
         id: "check-cost",
-        action: `Reconcile sanctioned allocation (₹${project.sanctioned_amount_lakh}L) with actual expenditure (₹${project.expenditure_lakh}L) and approved estimates.`,
+        action: `Reconcile sanctioned allocation (${formatCurrencyLakh(project.sanctioned_amount_lakh)}) with actual expenditure (${formatCurrencyLakh(project.expenditure_lakh)}) and approved estimates.`,
         promptedBy: `Financial Anomaly Signal: ${costAnomalies[0].anomaly_type.replace(/_/g, " ")}`,
         category: "FINANCIAL",
       });
@@ -170,8 +172,8 @@ export const ConsistencyVerificationCard: React.FC<ConsistencyVerificationCardPr
     if (progressAnomalies.length > 0 || Math.abs(project.physical_progress_pct - utilizationPct) > 25) {
       checks.push({
         id: "check-progress",
-        action: `Conduct geo-tagged physical site inspection to verify physical completion (${project.physical_progress_pct}%) against financial utilization (${utilizationPct}%).`,
-        promptedBy: `Execution Trajectory: Physical (${project.physical_progress_pct}%) vs Fund Utilization (${utilizationPct}%)`,
+        action: `Conduct geo-tagged physical site inspection to verify physical completion (${formatProgressPct(project.physical_progress_pct)}) against financial utilization (${formatFundUtilizationPct(project.expenditure_lakh, project.sanctioned_amount_lakh)}).`,
+        promptedBy: `Execution Trajectory: Physical (${formatProgressPct(project.physical_progress_pct)}) vs Fund Utilization (${formatFundUtilizationPct(project.expenditure_lakh, project.sanctioned_amount_lakh)})`,
         category: "TIMELINE",
       });
     }

@@ -22,6 +22,12 @@ import {
   XCircle,
   Scale,
 } from "lucide-react";
+import {
+  formatCurrencyLakh,
+  formatProgressPct,
+  formatPlannedTargetPct,
+  formatFundUtilizationPct,
+} from "../../utils/formatters";
 import { RealComparableProjectsPanel } from "./RealComparableProjectsPanel";
 import { InvestigationPanel } from "./InvestigationPanel";
 import { ConsistencyVerificationCard } from "./ConsistencyVerificationCard";
@@ -198,35 +204,35 @@ export const ProjectDossierModal: React.FC<ProjectDossierModalProps> = ({
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sanctioned</span>
               <div className="text-base font-bold text-slate-900 mt-0.5 font-mono">
-                ₹{project.sanctioned_amount_lakh}L
+                {formatCurrencyLakh(project.sanctioned_amount_lakh)}
               </div>
             </div>
 
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Actual Spent</span>
               <div className="text-base font-bold text-slate-900 mt-0.5 font-mono">
-                ₹{project.expenditure_lakh}L
+                {formatCurrencyLakh(project.expenditure_lakh)}
               </div>
             </div>
 
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Physical Progress</span>
               <div className="text-base font-bold text-blue-700 mt-0.5 font-mono">
-                {project.physical_progress_pct}%
+                {formatProgressPct(project.physical_progress_pct)}
               </div>
             </div>
 
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Planned Target</span>
               <div className="text-base font-bold text-slate-900 mt-0.5 font-mono">
-                {project.planned_progress_pct}%
+                {formatPlannedTargetPct(project.planned_progress_pct)}
               </div>
             </div>
 
             <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fund Utilization</span>
               <div className="text-base font-bold text-slate-900 mt-0.5 font-mono">
-                {utilizationPct}%
+                {formatFundUtilizationPct(project.expenditure_lakh, project.sanctioned_amount_lakh, utilizationPct)}
               </div>
             </div>
 
@@ -332,19 +338,19 @@ export const ProjectDossierModal: React.FC<ProjectDossierModalProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Sanctioned Allocation:</span>
-                  <span className="font-mono font-bold text-slate-900">₹{project.sanctioned_amount_lakh} Lakhs</span>
+                  <span className="font-mono font-bold text-slate-900">{formatCurrencyLakh(project.sanctioned_amount_lakh, "Lakhs")}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Estimated Technical Cost:</span>
-                  <span className="font-mono font-bold text-slate-900">₹{project.estimated_cost_lakh} Lakhs</span>
+                  <span className="font-mono font-bold text-slate-900">{formatCurrencyLakh(project.estimated_cost_lakh, "Lakhs")}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Actual Cumulative Drawdown:</span>
-                  <span className="font-mono font-bold text-slate-900">₹{project.expenditure_lakh} Lakhs</span>
+                  <span className="font-mono font-bold text-slate-900">{formatCurrencyLakh(project.expenditure_lakh, "Lakhs")}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100">
                   <span className="text-slate-500">Sanction Utilization:</span>
-                  <span className="font-mono font-bold text-slate-900">{utilizationPct}%</span>
+                  <span className="font-mono font-bold text-slate-900">{formatFundUtilizationPct(project.expenditure_lakh, project.sanctioned_amount_lakh, utilizationPct)}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs py-1.5">
                   <span className="text-slate-500">Cost Variance vs Sanction:</span>
